@@ -7,21 +7,35 @@ import (
 )
 
 const (
-	immediate        = time.Duration(0)
+	// 立即执行
+	// immediate execute.
+	immediate = time.Duration(0)
+
+	// 默认主题名称
+	// Default topic name.
 	DefaultTopicName = "default"
 )
 
-var (
-	ErrorTopicNotExists = errors.New("topic does not exist")
-)
+// ErrorTopicNotExists 订阅主题不存在
+// ErrorTopicNotExists topic does not exist
+var ErrorTopicNotExists = errors.New("topic does not exist")
 
 // EventEmitter 定义了一个事件发射器。
 // EventEmitter represents an event emitter.
 type EventEmitter struct {
-	pipeline      PipelineInterface
-	once          sync.Once
-	eventpool     *EventPool
-	lock          sync.RWMutex
+	// pipeline represents the pipeline interface used by the event emitter.
+	pipeline PipelineInterface
+
+	// once ensures that the Stop method is only called once.
+	once sync.Once
+
+	// eventpool is the pool of reusable event objects.
+	eventpool *EventPool
+
+	// lock is used to synchronize access to the registerFuncs map.
+	lock sync.RWMutex
+
+	// registerFuncs is a map that stores the message handle functions for each topic.
 	registerFuncs map[string]MessageHandleFunc
 }
 
@@ -43,7 +57,7 @@ func NewEventEmitter(pl PipelineInterface) *EventEmitter {
 
 // Stop 停止事件发射器。
 // Stop stops the event emitter.
-func (ee *EventEmitter) Stop(msg any) {
+func (ee *EventEmitter) Stop() {
 	ee.once.Do(func() {
 		ee.pipeline.Stop()
 	})
@@ -54,7 +68,9 @@ func (ee *EventEmitter) Stop(msg any) {
 func (ee *EventEmitter) OnWithTopic(topic string, fn MessageHandleFunc) {
 	ee.lock.Lock()
 	defer ee.lock.Unlock()
-	ee.registerFuncs[topic] = fn
+	ee.registerFuncs[topic] = func(msg any) (any, error) {
+		return fn(msg.(*Event).GetData())
+	}
 }
 
 // On 注册一个消息处理函数到默认主题。
@@ -81,15 +97,23 @@ func (ee *EventEmitter) Off() {
 // emit sends an event with the specified topic, message, and delay.
 func (ee *EventEmitter) emit(topic string, msg any, delay time.Duration) error {
 	ee.lock.RLock()
+	// 检查主题是否存在，如果不存在则返回 ErrorTopicNotExists 错误
+	// Check if the topic exists, if not, return ErrorTopicNotExists error.
 	fn, ok := ee.registerFuncs[topic]
 	if !ok {
 		ee.lock.RUnlock()
 		return ErrorTopicNotExists
 	}
 	ee.lock.RUnlock()
+
+	// 从事件池中获取一个事件，并设置相对应的值
+	// Get an event from the event pool and set the corresponding value.
 	event := ee.eventpool.Get()
 	event.SetTopic(topic)
 	event.SetData(msg)
+
+	// 将事件添加到管道中，如果 delay 大于 0 则添加延迟任务，否则添加立即执行任务
+	// Add the event to the pipeline, if delay is greater than 0, add a delay task, otherwise add an immediate task.
 	var err error
 	if delay > 0 {
 		err = ee.pipeline.SubmitAfterWithFunc(fn, event, delay)
