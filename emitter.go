@@ -69,6 +69,7 @@ func (ee *EventEmitter) OnWithTopic(topic string, fn MessageHandleFunc) {
 	ee.lock.Lock()
 	defer ee.lock.Unlock()
 	ee.registerFuncs[topic] = func(msg any) (any, error) {
+		defer ee.eventpool.Put(msg.(*Event))
 		return fn(msg.(*Event).GetData())
 	}
 }
