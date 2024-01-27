@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	testTopic     = "topic1"
-	testMessage   = "message1"
+	testTopic     = "topic"
+	testMessage   = "message"
 	testMaxRounds = 10
 )
 
@@ -57,7 +57,7 @@ func main() {
 	// Emit test messages, only the first one should be handled
 	for i := 0; i < testMaxRounds; i++ {
 		// Emit test message
-		_ = ee.EmitWithTopic(testTopic, testMessage)
+		_ = ee.EmitWithTopic(testTopic, testMessage+fmt.Sprint(i))
 	}
 
 	// Wait for the delay to pass
