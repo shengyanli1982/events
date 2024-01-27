@@ -398,7 +398,7 @@ func TestEventEmitter_ResetOnceWithTopic(t *testing.T) {
 	}
 
 	// Reset the once controller
-	ee.OnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+	ee.ResetOnceWithTopic(testTopic)
 
 	// Emit test messages, only the first one should be handled
 	for i := 0; i < testMaxRounds; i++ {
@@ -438,7 +438,7 @@ func TestEventEmitter_ResetOnce(t *testing.T) {
 	}
 
 	// Reset the once controller
-	ee.Once(handler.testTopicMsgHandleFunc)
+	ee.ResetOnce()
 
 	// Emit test messages, only the first one should be handled
 	for i := 0; i < testMaxRounds; i++ {

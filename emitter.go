@@ -26,6 +26,30 @@ var (
 	ErrorTopicExcuteOnced = errors.New("topic has been executed once")
 )
 
+type handleFuncs struct {
+	origFunc, wrapFunc MessageHandleFunc
+}
+
+func newHandleFuncs() *handleFuncs {
+	return &handleFuncs{origFunc: nil, wrapFunc: nil}
+}
+
+func (h *handleFuncs) SetOrigMsgHandleFunc(fn MessageHandleFunc) {
+	h.origFunc = fn
+}
+
+func (h *handleFuncs) GetOrigMsgHandleFunc() MessageHandleFunc {
+	return h.origFunc
+}
+
+func (h *handleFuncs) SetWrapMsgHandleFunc(fn MessageHandleFunc) {
+	h.wrapFunc = fn
+}
+
+func (h *handleFuncs) GetWrapMsgHandleFunc() MessageHandleFunc {
+	return h.wrapFunc
+}
+
 // EventEmitter 定义了一个事件发射器。
 // EventEmitter represents an event emitter.
 type EventEmitter struct {
@@ -47,7 +71,7 @@ type EventEmitter struct {
 
 	// registerFuncs 是一个 map，用于存储每个主题的消息处理函数。
 	// registerFuncs is a map that stores the message handle functions for each topic.
-	registerFuncs map[string]MessageHandleFunc
+	registerFuncs map[string]*handleFuncs
 }
 
 // NewEventEmitter 创建一个新的 EventEmitter 实例。
@@ -61,7 +85,7 @@ func NewEventEmitter(pl PipelineInterface) *EventEmitter {
 		once:          sync.Once{},
 		eventpool:     NewEventPool(),
 		lock:          sync.RWMutex{},
-		registerFuncs: make(map[string]MessageHandleFunc),
+		registerFuncs: make(map[string]*handleFuncs),
 	}
 	return &ee
 }
@@ -79,10 +103,19 @@ func (ee *EventEmitter) Stop() {
 func (ee *EventEmitter) OnWithTopic(topic string, fn MessageHandleFunc) {
 	ee.lock.Lock()
 	defer ee.lock.Unlock()
-	ee.registerFuncs[topic] = func(msg any) (any, error) {
+
+	// 创建一个消息处理函数元数据
+	// Create a message handle function fns.
+	fns := newHandleFuncs()
+	fns.SetOrigMsgHandleFunc(fn)
+	fns.SetWrapMsgHandleFunc(func(msg any) (any, error) {
 		defer ee.eventpool.Put(msg.(*Event))
 		return fn(msg.(*Event).GetData())
-	}
+	})
+
+	// 为指定主题注册一个消息处理函数
+	// Register a message handle function for the specified topic.
+	ee.registerFuncs[topic] = fns
 }
 
 // On 注册一个消息处理函数到默认主题。
@@ -115,9 +148,11 @@ func (ee *EventEmitter) OnceWithTopic(topic string, fn MessageHandleFunc) {
 	// Create a controller that is executed only once.
 	once := &sync.Once{}
 
-	// 为指定主题注册一个消息处理函数，该消息处理函数只会执行一次
-	// Register a message handle function for the specified topic that will only be executed once.
-	ee.registerFuncs[topic] = func(msg any) (data any, err error) {
+	// 创建一个消息处理函数元数据
+	// Create a message handle function fns.
+	fns := newHandleFuncs()
+	fns.SetOrigMsgHandleFunc(fn)
+	fns.SetWrapMsgHandleFunc(func(msg any) (data any, err error) {
 		// 将消息放回事件池
 		// Put the message back into the event pool.
 		defer ee.eventpool.Put(msg.(*Event))
@@ -135,7 +170,11 @@ func (ee *EventEmitter) OnceWithTopic(topic string, fn MessageHandleFunc) {
 		// 返回消息处理函数的结果和错误
 		// Return the result and error of the message handle function.
 		return data, err
-	}
+	})
+
+	// 为指定主题注册一个消息处理函数，该消息处理函数只会执行一次
+	// Register a message handle function for the specified topic that will only be executed once.
+	ee.registerFuncs[topic] = fns
 }
 
 // Once 注册一个只执行一次的消息处理函数到默认主题。
@@ -144,13 +183,34 @@ func (ee *EventEmitter) Once(fn MessageHandleFunc) {
 	ee.OnceWithTopic(DefaultTopicName, fn)
 }
 
+// ResetOnceWithTopic 重置一个只执行一次的消息处理函数到指定的主题。
+// ResetOnceWithTopic resets a message handle function that is executed only once for a specific topic.
+func (ee *EventEmitter) ResetOnceWithTopic(topic string) {
+	// 获取原始的消息处理函数
+	// Get the original message handle function.
+	origHandleFunc, err := ee.GetMessageHandleFunc(topic)
+	if err != nil {
+		return
+	}
+
+	// 重新注册一个只执行一次的消息处理函数
+	// Re-register a message handle function that is executed only once.
+	ee.OnceWithTopic(topic, origHandleFunc)
+}
+
+// ResetOnce 重置一个只执行一次的消息处理函数到默认主题。
+// ResetOnce resets a message handle function that is executed only once for the default topic.
+func (ee *EventEmitter) ResetOnce() {
+	ee.ResetOnceWithTopic(DefaultTopicName)
+}
+
 // emit 发送一个指定主题、消息和延迟的事件。
 // emit sends an event with the specified topic, message, and delay.
 func (ee *EventEmitter) emit(topic string, msg any, delay time.Duration) error {
 	ee.lock.RLock()
 	// 检查主题是否存在，如果不存在则返回 ErrorTopicNotExists 错误
 	// Check if the topic exists, if not, return ErrorTopicNotExists error.
-	fn, ok := ee.registerFuncs[topic]
+	fns, ok := ee.registerFuncs[topic]
 	if !ok {
 		ee.lock.RUnlock()
 		return ErrorTopicNotExists
@@ -167,9 +227,9 @@ func (ee *EventEmitter) emit(topic string, msg any, delay time.Duration) error {
 	// Add the event to the pipeline, if delay is greater than 0, add a delay task, otherwise add an immediate task.
 	var err error
 	if delay > 0 {
-		err = ee.pipeline.SubmitAfterWithFunc(fn, event, delay)
+		err = ee.pipeline.SubmitAfterWithFunc(fns.GetWrapMsgHandleFunc(), event, delay)
 	} else {
-		err = ee.pipeline.SubmitWithFunc(fn, event)
+		err = ee.pipeline.SubmitWithFunc(fns.GetWrapMsgHandleFunc(), event)
 	}
 	if err != nil {
 		ee.eventpool.Put(event)
@@ -208,9 +268,9 @@ func (ee *EventEmitter) EmitAfter(msg any, delay time.Duration) error {
 func (ee *EventEmitter) GetMessageHandleFunc(topic string) (MessageHandleFunc, error) {
 	ee.lock.RLock()
 	defer ee.lock.RUnlock()
-	fn, ok := ee.registerFuncs[topic]
+	metadata, ok := ee.registerFuncs[topic]
 	if !ok {
 		return nil, ErrorTopicNotExists
 	}
-	return fn, nil
+	return metadata.GetOrigMsgHandleFunc(), nil
 }
