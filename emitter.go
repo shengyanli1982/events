@@ -20,6 +20,8 @@ const (
 // ErrorTopicNotExists topic does not exist
 var ErrorTopicNotExists = errors.New("topic does not exist")
 
+var ErrorTopicExcuteOnced = errors.New("topic has been executed once")
+
 // EventEmitter 定义了一个事件发射器。
 // EventEmitter represents an event emitter.
 type EventEmitter struct {
@@ -37,6 +39,9 @@ type EventEmitter struct {
 
 	// registerFuncs is a map that stores the message handle functions for each topic.
 	registerFuncs map[string]MessageHandleFunc
+
+	// registerOnces is a map that stores the sync.Once objects for each topic.
+	registerOnces map[string]*sync.Once
 }
 
 // NewEventEmitter 创建一个新的 EventEmitter 实例。
@@ -51,6 +56,7 @@ func NewEventEmitter(pl PipelineInterface) *EventEmitter {
 		eventpool:     NewEventPool(),
 		lock:          sync.RWMutex{},
 		registerFuncs: make(map[string]MessageHandleFunc),
+		registerOnces: make(map[string]*sync.Once),
 	}
 	return &ee
 }
@@ -85,13 +91,70 @@ func (ee *EventEmitter) On(fn MessageHandleFunc) {
 func (ee *EventEmitter) OffWithTopic(topic string) {
 	ee.lock.Lock()
 	defer ee.lock.Unlock()
-	delete(ee.registerFuncs, topic)
+	if _, ok := ee.registerOnces[topic]; !ok {
+		delete(ee.registerFuncs, topic)
+	}
 }
 
 // Off 取消注册默认主题的消息处理函数。
 // Off unregisters the message handle function for the default topic.
 func (ee *EventEmitter) Off() {
 	ee.OffWithTopic(DefaultTopicName)
+}
+
+// OnceWithTopic 注册一个只执行一次的消息处理函数到指定的主题。
+// OnceWithTopic registers a message handle function that is executed only once for a specific topic.
+func (ee *EventEmitter) OnceWithTopic(topic string, fn MessageHandleFunc) {
+	ee.lock.Lock()
+	defer ee.lock.Unlock()
+	ee.registerOnces[topic] = &sync.Once{}
+	ee.registerFuncs[topic] = func(msg any) (data any, err error) {
+		defer ee.eventpool.Put(msg.(*Event))
+		err = ErrorTopicExcuteOnced
+		ee.registerOnces[topic].Do(func() {
+			data, err = fn(msg.(*Event).GetData())
+		})
+		return
+	}
+}
+
+// Once 注册一个只执行一次的消息处理函数到默认主题。
+// Once registers a message handle function that is executed only once for the default topic.
+func (ee *EventEmitter) Once(fn MessageHandleFunc) {
+	ee.OnceWithTopic(DefaultTopicName, fn)
+}
+
+// ResetOnceWithTopic 重置指定主题只执行一次的控制器，允许再执行一次。
+// ResetOnceWithTopic resets the controller that only executes once for the specified topic, allowing it to be executed again.
+func (ee *EventEmitter) ResetOnceWithTopic(topic string) {
+	ee.lock.Lock()
+	defer ee.lock.Unlock()
+	if _, ok := ee.registerOnces[topic]; ok {
+		ee.registerOnces[topic] = &sync.Once{}
+	}
+}
+
+// ResetOnce 重置默认主题只执行一次的控制器，允许再执行一次。
+// ResetOnce resets the controller that only executes once for the default topic, allowing it to be executed again.
+func (ee *EventEmitter) ResetOnce() {
+	ee.ResetOnceWithTopic(DefaultTopicName)
+}
+
+// OffOnceWithTopic 取消注册指定主题的只执行一次的消息处理函数。
+// OffOnceWithTopic unregisters the message handle function that only executes once for the specified topic.
+func (ee *EventEmitter) OffOnceWithTopic(topic string) {
+	ee.lock.Lock()
+	defer ee.lock.Unlock()
+	if _, ok := ee.registerOnces[topic]; ok {
+		delete(ee.registerFuncs, topic)
+		delete(ee.registerOnces, topic)
+	}
+}
+
+// OffOnce 取消注册默认主题的只执行一次的消息处理函数。
+// OffOnce unregisters the message handle function that only executes once for the default topic.
+func (ee *EventEmitter) OffOnce() {
+	ee.OffOnceWithTopic(DefaultTopicName)
 }
 
 // emit 发送一个指定主题、消息和延迟的事件。

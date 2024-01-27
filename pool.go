@@ -106,38 +106,3 @@ func (p *EventPool) Put(e *Event) {
 		p.pool.Put(e)
 	}
 }
-
-// OnceFuncElement 是一个只能执行一次的函数元素的结构体。
-// OnceFuncElement is a struct that represents a function element that can only be executed once.
-type OnceFuncElement struct {
-	submitFunc MessageHandleFunc
-	once       sync.Once
-}
-
-// NewOnceFuncElement 创建一个新的 OnceFuncElement 实例。
-// NewOnceFuncElement creates a new OnceFuncElement instance.
-func NewOnceFuncElement() *OnceFuncElement {
-	return &OnceFuncElement{
-		submitFunc: nil,
-		once:       sync.Once{},
-	}
-}
-
-// SetSubmitFunc 设置 OnceFuncElement 的提交函数。
-// SetSubmitFunc sets the submit function of the OnceFuncElement.
-func (o *OnceFuncElement) SetSubmitFunc(fn MessageHandleFunc) {
-	o.submitFunc = fn
-}
-
-// GetSubmitFunc 返回 OnceFuncElement 的提交函数。
-// GetSubmitFunc returns the submit function of the OnceFuncElement.
-func (o *OnceFuncElement) GetSubmitFunc() MessageHandleFunc {
-	return o.submitFunc
-}
-
-// Reset 将 OnceFuncElement 重置为默认值。
-// Reset resets the OnceFuncElement to its default values.
-func (o *OnceFuncElement) Reset() {
-	o.submitFunc = nil
-	o.once = sync.Once{}
-}
