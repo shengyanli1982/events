@@ -26,26 +26,38 @@ var (
 	ErrorTopicExcuteOnced = errors.New("topic has been executed once")
 )
 
+// handleFuncs 定义了消息处理函数的结构。
+// handleFuncs defines the structure of message handle functions.
 type handleFuncs struct {
 	origFunc, wrapFunc MessageHandleFunc
 }
 
+// newHandleFuncs 创建一个新的 handleFuncs 实例。
+// newHandleFuncs creates a new instance of handleFuncs.
 func newHandleFuncs() *handleFuncs {
 	return &handleFuncs{origFunc: nil, wrapFunc: nil}
 }
 
+// SetOrigMsgHandleFunc 设置原始消息处理函数。
+// SetOrigMsgHandleFunc sets the original message handle function.
 func (h *handleFuncs) SetOrigMsgHandleFunc(fn MessageHandleFunc) {
 	h.origFunc = fn
 }
 
+// GetOrigMsgHandleFunc 获取原始消息处理函数。
+// GetOrigMsgHandleFunc gets the original message handle function.
 func (h *handleFuncs) GetOrigMsgHandleFunc() MessageHandleFunc {
 	return h.origFunc
 }
 
+// SetWrapMsgHandleFunc 设置包装后的消息处理函数。
+// SetWrapMsgHandleFunc sets the wrapped message handle function.
 func (h *handleFuncs) SetWrapMsgHandleFunc(fn MessageHandleFunc) {
 	h.wrapFunc = fn
 }
 
+// GetWrapMsgHandleFunc 获取包装后的消息处理函数。
+// GetWrapMsgHandleFunc gets the wrapped message handle function.
 func (h *handleFuncs) GetWrapMsgHandleFunc() MessageHandleFunc {
 	return h.wrapFunc
 }
