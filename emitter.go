@@ -24,27 +24,28 @@ var (
 	// ErrorTopicExcuteOnced 主题已经执行过一次
 	// ErrorTopicExcuteOnced topic has been executed once
 	ErrorTopicExcuteOnced = errors.New("topic has been executed once")
-
-	// ErrorTopicOncerNotExists 主题 once 控制器不存在
-	// ErrorTopicOncerNotExists topic once controller does not exist
-	ErrorTopicOncerNotExists = errors.New("topic once controller does not exist")
 )
 
 // EventEmitter 定义了一个事件发射器。
 // EventEmitter represents an event emitter.
 type EventEmitter struct {
+	// 事件管道
 	// pipeline represents the pipeline interface used by the event emitter.
 	pipeline PipelineInterface
 
+	// once 用于保证 Stop 方法只会被调用一次。
 	// once ensures that the Stop method is only called once.
 	once sync.Once
 
+	// eventpool 是可重用的事件对象池。
 	// eventpool is the pool of reusable event objects.
 	eventpool *EventPool
 
+	// lock 用于同步访问 registerFuncs map。
 	// lock is used to synchronize access to the registerFuncs map.
 	lock sync.RWMutex
 
+	// registerFuncs 是一个 map，用于存储每个主题的消息处理函数。
 	// registerFuncs is a map that stores the message handle functions for each topic.
 	registerFuncs map[string]MessageHandleFunc
 }
@@ -110,8 +111,8 @@ func (ee *EventEmitter) OnceWithTopic(topic string, fn MessageHandleFunc) {
 	ee.lock.Lock()
 	defer ee.lock.Unlock()
 
-	// 为指定主题注册一个只执行一次的控制器
-	// Register a controller that only executes once for the specified topic.
+	// 创建只执行一次的控制器
+	// Create a controller that is executed only once.
 	once := &sync.Once{}
 
 	// 为指定主题注册一个消息处理函数，该消息处理函数只会执行一次
