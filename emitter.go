@@ -16,11 +16,19 @@ const (
 	DefaultTopicName = "default"
 )
 
-// ErrorTopicNotExists 订阅主题不存在
-// ErrorTopicNotExists topic does not exist
-var ErrorTopicNotExists = errors.New("topic does not exist")
+var (
+	// ErrorTopicNotExists 订阅主题不存在
+	// ErrorTopicNotExists topic does not exist
+	ErrorTopicNotExists = errors.New("topic does not exist")
 
-var ErrorTopicExcuteOnced = errors.New("topic has been executed once")
+	// ErrorTopicExcuteOnced 主题已经执行过一次
+	// ErrorTopicExcuteOnced topic has been executed once
+	ErrorTopicExcuteOnced = errors.New("topic has been executed once")
+
+	// ErrorTopicOncerNotExists 主题 once 控制器不存在
+	// ErrorTopicOncerNotExists topic once controller does not exist
+	ErrorTopicOncerNotExists = errors.New("topic once controller does not exist")
+)
 
 // EventEmitter 定义了一个事件发射器。
 // EventEmitter represents an event emitter.
@@ -122,13 +130,15 @@ func (ee *EventEmitter) OnceWithTopic(topic string, fn MessageHandleFunc) {
 		// Put the message back into the event pool.
 		defer ee.eventpool.Put(msg.(*Event))
 
-		// 执行消息处理函数，如果消息处理函数执行成功则返回消息处理函数的结果，否则返回 ErrorTopicExcuteOnced 错误
-		// Execute the message handle function, if the message handle function is executed successfully, return the result of the message handle function, otherwise return the ErrorTopicExcuteOnced error.
+		// 执行消息处理函数，如果消息处理函数执行成功则返回消息处理函数的结果，否则返回 ErrorTopicExcuteOnced 或者 ErrorTopicOncerNotExists 错误
+		// Execute the message handle function, if the message handle function is executed successfully, return the result of the message handle function, otherwise return the ErrorTopicExcuteOnced or ErrorTopicOncerNotExists error.
 		err = ErrorTopicExcuteOnced
 		if once, ok := ee.registerOnces[topic]; ok && once != nil {
 			once.Do(func() {
 				data, err = fn(msg.(*Event).GetData())
 			})
+		} else {
+			err = ErrorTopicOncerNotExists
 		}
 
 		// 返回消息处理函数的结果和错误
