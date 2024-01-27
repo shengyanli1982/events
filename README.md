@@ -36,12 +36,21 @@ go get github.com/shengyanli1982/events
 -   `Off` : Unregister a function for default topic.
 -   `OnceWithTopic` : Register a function for a topic, function will be executed only once.
 -   `Once` : Register a function for default topic, function will be executed only once.
+-   `ResetOnceWithTopic` : Reset an executed function for a topic, function will be executed only once.
+-   `ResetOnce` : Reset an executed function for default topic, function will be executed only once.
 -   `EmitWithTopic` : Emit a topic event.
 -   `Emit` : Emit a default topic event.
 -   `EmitAfterWithTopic` : Emit a topic event after a delay.
 -   `EmitAfter` : Emit a default topic event after a delay.
 -   `GetMessageHandleFunc` : Get a topic message handle function.
 -   `Stop` : Stop the `EventEmitter`.
+
+> [!TIP]
+> The `OnceWithTopic` and `Once` methods will be executed only once, if you want to execute them multiple times, you need to register them multiple times.
+>
+> There have another way to execute them multiple times, you can use `ResetOnceWithTopic` and `ResetOnce` methods to reset them.
+>
+> The `ResetOnceWithTopic` and `ResetOnce` methods are wrapper for `OnceWithTopic` and `Once` methods, they will get the function first, and then register it again.
 
 ## Mode
 
