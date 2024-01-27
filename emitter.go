@@ -91,6 +91,9 @@ func (ee *EventEmitter) On(fn MessageHandleFunc) {
 func (ee *EventEmitter) OffWithTopic(topic string) {
 	ee.lock.Lock()
 	defer ee.lock.Unlock()
+
+	// 如果指定主题存在，则删除指定主题的消息处理函数
+	// If the specified topic exists, delete the message handle function for the specified topic.
 	if _, ok := ee.registerOnces[topic]; !ok {
 		delete(ee.registerFuncs, topic)
 	}
@@ -107,13 +110,29 @@ func (ee *EventEmitter) Off() {
 func (ee *EventEmitter) OnceWithTopic(topic string, fn MessageHandleFunc) {
 	ee.lock.Lock()
 	defer ee.lock.Unlock()
+
+	// 为指定主题注册一个只执行一次的控制器
+	// Register a controller that only executes once for the specified topic.
 	ee.registerOnces[topic] = &sync.Once{}
+
+	// 为指定主题注册一个消息处理函数，该消息处理函数只会执行一次
+	// Register a message handle function for the specified topic that will only be executed once.
 	ee.registerFuncs[topic] = func(msg any) (data any, err error) {
+		// 将消息放回事件池
+		// Put the message back into the event pool.
 		defer ee.eventpool.Put(msg.(*Event))
+
+		// 执行消息处理函数，如果消息处理函数执行成功则返回消息处理函数的结果，否则返回 ErrorTopicExcuteOnced 错误
+		// Execute the message handle function, if the message handle function is executed successfully, return the result of the message handle function, otherwise return the ErrorTopicExcuteOnced error.
 		err = ErrorTopicExcuteOnced
-		ee.registerOnces[topic].Do(func() {
-			data, err = fn(msg.(*Event).GetData())
-		})
+		if once, ok := ee.registerOnces[topic]; ok && once != nil {
+			once.Do(func() {
+				data, err = fn(msg.(*Event).GetData())
+			})
+		}
+
+		// 返回消息处理函数的结果和错误
+		// Return the result and error of the message handle function.
 		return
 	}
 }
@@ -145,6 +164,9 @@ func (ee *EventEmitter) ResetOnce() {
 func (ee *EventEmitter) OffOnceWithTopic(topic string) {
 	ee.lock.Lock()
 	defer ee.lock.Unlock()
+
+	// 如果指定主题存在，则删除指定主题的消息处理函数和只执行一次的控制器
+	// If the specified topic exists, delete the message handle function and the controller that only executes once for the specified topic.
 	if _, ok := ee.registerOnces[topic]; ok {
 		delete(ee.registerFuncs, topic)
 		delete(ee.registerOnces, topic)

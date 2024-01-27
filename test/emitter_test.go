@@ -2,7 +2,7 @@ package test
 
 import (
 	"fmt"
-	"sync/atomic"
+	"sync"
 	"testing"
 	"time"
 
@@ -46,22 +46,24 @@ func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
 
 type onceCallback struct {
 	t     *testing.T
-	count atomic.Int64
+	lock  sync.Mutex
+	count int
 }
 
 func (c *onceCallback) OnBefore(msg any) {}
 
 func (c *onceCallback) OnAfter(msg, result any, err error) {
-	fmt.Println(">>>", msg, result, err, c.count.Load())
-	// if c.count == 0 {
-	// 	assert.Equal(c.t, testMessage, msg.(*events.Event).GetData())
-	// 	assert.Equal(c.t, testMessage, result.(string))
-	// 	assert.NoError(c.t, err)
-	// } else {
-	// 	assert.Nil(c.t, result)
-	// 	assert.Equal(c.t, events.ErrorTopicExcuteOnced, err)
-	// }
-	c.count.Add(1)
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	fmt.Println("> OnceCallback", result, err, c.count)
+	if c.count == 0 {
+		assert.Equal(c.t, testMessage, result.(string))
+		assert.NoError(c.t, err)
+	} else {
+		assert.Nil(c.t, result)
+		assert.Equal(c.t, events.ErrorTopicExcuteOnced, err)
+	}
+	c.count++
 }
 
 func TestEventEmitter_Emit(t *testing.T) {
@@ -256,6 +258,102 @@ func TestEventEmitter_Once(t *testing.T) {
 		err = ee.Emit(testMessage)
 		assert.NoError(t, err)
 	}
+
+	// Wait for the delay to pass
+	time.Sleep(time.Second)
+
+	// Stop event emitter
+	ee.Stop()
+}
+
+func TestEventEmitter_OnceWithTopic(t *testing.T) {
+	// Create a new config, queue and pipeline
+	c := k.NewConfig().WithCallback(&onceCallback{t: t})
+	queue := k.NewFakeDelayingQueue(workqueue.NewSimpleQueue(nil))
+	pl := k.NewPipeline(queue, c)
+
+	// Create a new event emitter
+	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+
+	// Create test handler
+	handler := &handler{t: t}
+
+	// Register test handler with OnceWithTopic
+	ee.OnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+
+	// Emit test messages, only the first one should be handled
+	var err error
+	for i := 0; i < 10; i++ {
+		// Emit test message
+		err = ee.EmitWithTopic(testTopic, testMessage)
+		assert.NoError(t, err)
+	}
+
+	// Wait for the delay to pass
+	time.Sleep(time.Second)
+
+	// Stop event emitter
+	ee.Stop()
+}
+
+func TestEventEmitter_OffOnceWithTopic(t *testing.T) {
+	/// Create a new config, queue and pipeline
+	c := k.NewConfig()
+	queue := k.NewFakeDelayingQueue(workqueue.NewSimpleQueue(nil))
+	pl := k.NewPipeline(queue, c)
+
+	// Create a new event emitter
+	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+
+	// Create test handler
+	handler := &handler{t: t}
+
+	// Register test handler
+	ee.OnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+
+	// Emit test message
+	err := ee.EmitWithTopic(testTopic, testMessage)
+	assert.NoError(t, err)
+
+	// Call OffWithTopic to unregister the handler
+	ee.OffOnceWithTopic(testTopic)
+
+	// Emit test message
+	err = ee.EmitWithTopic(testTopic, testMessage)
+	assert.Equal(t, events.ErrorTopicNotExists, err)
+
+	// Wait for the delay to pass
+	time.Sleep(time.Second)
+
+	// Stop event emitter
+	ee.Stop()
+}
+
+func TestEventEmitter_OffOnce(t *testing.T) {
+	/// Create a new config, queue and pipeline
+	c := k.NewConfig()
+	queue := k.NewFakeDelayingQueue(workqueue.NewSimpleQueue(nil))
+	pl := k.NewPipeline(queue, c)
+
+	// Create a new event emitter
+	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+
+	// Create test handler
+	handler := &handler{t: t}
+
+	// Register test handler
+	ee.Once(handler.testTopicMsgHandleFunc)
+
+	// Emit test message
+	err := ee.Emit(testMessage)
+	assert.NoError(t, err)
+
+	// Call OffWithTopic to unregister the handler
+	ee.OffOnce()
+
+	// Emit test message
+	err = ee.Emit(testMessage)
+	assert.Equal(t, events.ErrorTopicNotExists, err)
 
 	// Wait for the delay to pass
 	time.Sleep(time.Second)
