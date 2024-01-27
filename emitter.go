@@ -197,23 +197,25 @@ func (ee *EventEmitter) Once(fn MessageHandleFunc) {
 
 // ResetOnceWithTopic 重置一个只执行一次的消息处理函数到指定的主题。
 // ResetOnceWithTopic resets a message handle function that is executed only once for a specific topic.
-func (ee *EventEmitter) ResetOnceWithTopic(topic string) {
+func (ee *EventEmitter) ResetOnceWithTopic(topic string) error {
 	// 获取原始的消息处理函数
 	// Get the original message handle function.
 	origHandleFunc, err := ee.GetMessageHandleFunc(topic)
 	if err != nil {
-		return
+		return err
 	}
 
 	// 重新注册一个只执行一次的消息处理函数
 	// Re-register a message handle function that is executed only once.
 	ee.OnceWithTopic(topic, origHandleFunc)
+
+	return nil
 }
 
 // ResetOnce 重置一个只执行一次的消息处理函数到默认主题。
 // ResetOnce resets a message handle function that is executed only once for the default topic.
-func (ee *EventEmitter) ResetOnce() {
-	ee.ResetOnceWithTopic(DefaultTopicName)
+func (ee *EventEmitter) ResetOnce() error {
+	return ee.ResetOnceWithTopic(DefaultTopicName)
 }
 
 // emit 发送一个指定主题、消息和延迟的事件。
