@@ -1,4 +1,4 @@
-<div>
+<div align="center">
 	<h1>Events</h1>
 	<p>An implementation of the Node.js 'events' standard library in Golang.</p>
     <img src="assets/logo.png" alt="logo" width="300px">
