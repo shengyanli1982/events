@@ -12,7 +12,9 @@
 
 Why use `Events`? Because it is simple and easy to use, and it has no third-party dependencies. It is based pipline and callback functions. It is very suitable for use in task separation application.
 
-`Events` just regsiters functions for events, and then emits events. It is not care about the execution of the functions. It is up to you to decide how to execute the functions. You can use [`karta`](https://github.com/shengyanli1982/karta) to execute the functions in a separate task.
+`Events` just regsiters functions for events, and then emits events. It is not care about the execution of the functions. It is up to you to decide how to execute the functions. Implement the `PipelineInterface` interface to process the events.
+
+You can use [`karta`](https://github.com/shengyanli1982/karta) to execute the functions in a separate task, beacuse [`karta`](https://github.com/shengyanli1982/karta) has implemented the `PipelineInterface` interface.
 
 # Advantage
 
@@ -48,7 +50,7 @@ go get github.com/shengyanli1982/events
 > [!TIP]
 > The `OnceWithTopic` and `Once` methods will be executed only once, if you want to execute them multiple times, you need to register them multiple times.
 >
-> There have another way to execute them multiple times, you can use `ResetOnceWithTopic` and `ResetOnce` methods to reset them.
+> There have another way to execute them again, you can use `ResetOnceWithTopic` and `ResetOnce` methods to reset them.
 >
 > The `ResetOnceWithTopic` and `ResetOnce` methods are wrapper for `OnceWithTopic` and `Once` methods, they will get the function first, and then register it again.
 
@@ -149,7 +151,7 @@ $ go run demo.go
 
 ### 2. RunOnce Mode
 
-In `RunOnce` mode, the `EventEmitter` will stop after all registered functions have been executed. Just only one event will be processed by the registered functions.
+In `RunOnce` mode, the `EventEmitter` will not stop until you call the `Stop` method. Just only one event will be processed by the registered functions, even if you emit multiple events. If you want to process event again, call the `ResetOnceWithTopic` or `ResetOnce` method to reset the function.
 
 **Example**
 
