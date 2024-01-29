@@ -2,8 +2,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/shengyanli1982/karta v0.1.4 h1:9hbzG4TMEVO1HRQxo/zHPNYXWycTT+CFteNva3X6jFU=
-github.com/shengyanli1982/karta v0.1.4/go.mod h1:9EBVQUtVrCBgipprSZ8qcqBgWDzogJ29tKVkEKuDCzw=
+github.com/shengyanli1982/karta v0.1.6 h1:LrUqGueGxV2WQHcmhOUHV5vEYRVfoa1dX7aa0mwWT7U=
+github.com/shengyanli1982/karta v0.1.6/go.mod h1:9EBVQUtVrCBgipprSZ8qcqBgWDzogJ29tKVkEKuDCzw=
 github.com/shengyanli1982/workqueue v0.1.4 h1:wJnlmImp30M8jNTiUM7RzJIy/kzEzsMGWGj4PTQe1AY=
 github.com/shengyanli1982/workqueue v0.1.4/go.mod h1:gjVX17LBs2kKZ9r8pVRXPBgXk7Ysmf+Em86ErdygA88=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=

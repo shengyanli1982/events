@@ -80,23 +80,6 @@ var (
 	testMaxRounds = 10
 )
 
-// wrapper is a wrapper for k.Pipeline
-type wrapper struct {
-	pipeline *k.Pipeline
-}
-
-func (w *wrapper) SubmitWithFunc(fn events.MessageHandleFunc, msg any) error {
-	return w.pipeline.SubmitWithFunc(k.MessageHandleFunc(fn), msg)
-}
-
-func (w *wrapper) SubmitAfterWithFunc(fn events.MessageHandleFunc, msg any, delay time.Duration) error {
-	return w.pipeline.SubmitAfterWithFunc(k.MessageHandleFunc(fn), msg, delay)
-}
-
-func (w *wrapper) Stop() {
-	w.pipeline.Stop()
-}
-
 type handler struct{}
 
 func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
@@ -111,7 +94,7 @@ func main() {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{}
@@ -173,23 +156,6 @@ var (
 	testMaxRounds = 10
 )
 
-// wrapper is a wrapper for k.Pipeline
-type wrapper struct {
-	pipeline *k.Pipeline
-}
-
-func (w *wrapper) SubmitWithFunc(fn events.MessageHandleFunc, msg any) error {
-	return w.pipeline.SubmitWithFunc(k.MessageHandleFunc(fn), msg)
-}
-
-func (w *wrapper) SubmitAfterWithFunc(fn events.MessageHandleFunc, msg any, delay time.Duration) error {
-	return w.pipeline.SubmitAfterWithFunc(k.MessageHandleFunc(fn), msg, delay)
-}
-
-func (w *wrapper) Stop() {
-	w.pipeline.Stop()
-}
-
 type handler struct{}
 
 func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
@@ -204,7 +170,7 @@ func main() {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{}

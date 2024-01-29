@@ -18,23 +18,6 @@ var (
 	testMaxRounds = 10
 )
 
-// wrapper is a wrapper for k.Pipeline
-type wrapper struct {
-	pipeline *k.Pipeline
-}
-
-func (w *wrapper) SubmitWithFunc(fn events.MessageHandleFunc, msg any) error {
-	return w.pipeline.SubmitWithFunc(k.MessageHandleFunc(fn), msg)
-}
-
-func (w *wrapper) SubmitAfterWithFunc(fn events.MessageHandleFunc, msg any, delay time.Duration) error {
-	return w.pipeline.SubmitAfterWithFunc(k.MessageHandleFunc(fn), msg, delay)
-}
-
-func (w *wrapper) Stop() {
-	w.pipeline.Stop()
-}
-
 type handler struct {
 	t *testing.T
 }
@@ -72,7 +55,7 @@ func TestEventEmitter_Emit(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
@@ -98,7 +81,7 @@ func TestEventEmitter_EmitWithTopic(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
@@ -124,7 +107,7 @@ func TestEventEmitter_OffWithTopic(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
@@ -160,7 +143,7 @@ func TestEventEmitter_Off(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
@@ -197,7 +180,7 @@ func TestEventEmitter_EmitAfter(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
@@ -223,7 +206,7 @@ func TestEventEmitter_EmitAfterWithTopic(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
@@ -249,7 +232,7 @@ func TestEventEmitter_Once(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
@@ -279,7 +262,7 @@ func TestEventEmitter_OnceWithTopic(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
@@ -309,7 +292,7 @@ func TestEventEmitter_OffOnceWithTopic(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
@@ -345,7 +328,7 @@ func TestEventEmitter_OffOnce(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
@@ -381,7 +364,7 @@ func TestEventEmitter_ResetOnceWithTopic(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
@@ -421,7 +404,7 @@ func TestEventEmitter_ResetOnce(t *testing.T) {
 	pl := k.NewPipeline(queue, c)
 
 	// Create a new event emitter
-	ee := events.NewEventEmitter(&wrapper{pipeline: pl})
+	ee := events.NewEventEmitter(pl)
 
 	// Create test handler
 	handler := &handler{t: t}
