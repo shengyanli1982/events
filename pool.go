@@ -23,11 +23,7 @@ type Event struct {
 // NewEvent 创建一个具有默认值的 Event 实例。
 // NewEvent creates a new Event instance with default values.
 func NewEvent() *Event {
-	return &Event{
-		topic: "",
-		data:  nil,
-		value: 0,
-	}
+	return &Event{}
 }
 
 // SetTopic 设置事件的主题。
@@ -75,13 +71,17 @@ func (e *Event) Reset() {
 }
 
 // EventPool 是一个 Event 对象的池。
+// 它使用 sync.Pool 来管理 Event 对象的创建和回收。
 // EventPool is a pool of Event objects.
+// It uses sync.Pool to manage the creation and recycling of Event objects.
 type EventPool struct {
 	pool *sync.Pool
 }
 
 // NewEventPool 创建一个新的 EventPool 实例。
+// 它初始化一个 sync.Pool，其 New 函数返回一个新的 Event 实例。
 // NewEventPool creates a new EventPool instance.
+// It initializes a sync.Pool, whose New function returns a new Event instance.
 func NewEventPool() *EventPool {
 	return &EventPool{
 		pool: &sync.Pool{
@@ -92,14 +92,18 @@ func NewEventPool() *EventPool {
 	}
 }
 
-// Get 获取一个 Event 对象。
+// Get 从池中获取一个 Event 对象。
+// 如果池中没有可用的对象，它将创建一个新的 Event。
 // Get gets an Event object from the pool.
+// If there are no available objects in the pool, it will create a new Event.
 func (p *EventPool) Get() *Event {
 	return p.pool.Get().(*Event)
 }
 
 // Put 将一个 Event 对象放回池中。
+// 在放回之前，它会重置 Event 的状态。
 // Put puts an Event object back to the pool.
+// Before putting it back, it resets the state of the Event.
 func (p *EventPool) Put(e *Event) {
 	if e != nil {
 		e.Reset()
