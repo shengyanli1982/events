@@ -8,7 +8,7 @@ type MessageHandleFunc = func(msg any) (any, error)
 
 // PipelineInterface 是一个管道接口，用于添加事件到管道、延迟添加事件到管道以及停止管道的操作。
 // PipelineInterface is a pipeline interface for adding events to the pipeline, delaying events to the pipeline, and stopping the pipeline.
-type PipelineInterface interface {
+type PipelineInterface = interface {
 	// SubmitWithFunc 将一个新的事件添加到管道中，并指定消息处理函数。
 	// SubmitWithFunc adds a new event to the pipeline and specifies the message processing function.
 	SubmitWithFunc(fn MessageHandleFunc, msg any) error
