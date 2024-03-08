@@ -1,7 +1,7 @@
 <div align="center">
 	<h1>Events</h1>
 	<p>A software library that replicates the functionalities of the Node.js 'events' standard library, meticulously crafted for the Go programming environment.</p>
-    <img src="assets/logo.png" alt="logo" width="300px">
+    <img src="assets/logo.png" alt="logo" width="400px">
 </div>
 
 # Introduction
