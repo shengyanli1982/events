@@ -1,7 +1,6 @@
 English | [中文](./README_CN.md)
 
 <div align="center">
-	<h1>Events</h1>
     <img src="assets/logo.png" alt="logo" width="500px">
 </div>
 
