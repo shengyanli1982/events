@@ -1,67 +1,66 @@
-English | [中文](./README_CN.md)
+[English](./README.md) | 中文
 
 <div align="center">
-	<h1>Events</h1>
     <img src="assets/logo.png" alt="logo" width="500px">
 </div>
 
-# Introduction
+# 简介
 
-`Events` is a simple implementation of the Node.js 'events' standard library in Golang. It provides a pub/sub mechanism for emitting events and registering functions to handle those events.
+`Events` 是一个在 Golang 中简单实现了 Node.js 'events' 标准库的库。它提供了一个发布/订阅机制，用于发射事件和注册处理这些事件的函数。
 
-With `Events`, you can easily add event-driven functionality to your application. It is designed to be used in conjunction with [`karta`](https://github.com/shengyanli1982/karta).
+通过使用 `Events`，您可以轻松地为应用程序添加事件驱动的功能。它被设计用于与 [`karta`](https://github.com/shengyanli1982/karta) 结合使用。
 
-Why choose `Events`? It is simple, lightweight, and has no external dependencies. It follows a pipeline and callback function approach, making it suitable for task separation applications.
+为什么选择 `Events`？它简单、轻量且没有外部依赖。它采用了管道和回调函数的方式，适用于任务分离的应用程序。
 
-`Events` focuses on registering functions for events and emitting events, leaving the execution of functions up to you. You can use [`karta`](https://github.com/shengyanli1982/karta) to execute the functions in a separate task, as it implements the `PipelineInterface` interface.
+`Events` 的重点是注册事件处理函数和发射事件，而将函数的执行留给您来决定。您可以使用 [`karta`](https://github.com/shengyanli1982/karta) 在单独的任务中执行这些函数，因为它实现了 `PipelineInterface` 接口。
 
-Implement the `PipelineInterface` interface to process events and leverage the power of `Events` in your application.
+实现 `PipelineInterface` 接口来处理事件，并在您的应用程序中充分利用 `Events` 的强大功能。
 
-# Advantages
+# 优势
 
--   Simple and user-friendly
--   No external dependencies required
--   Supports callback functions for actions
+-   简单易用
+-   无需外部依赖
+-   支持回调函数进行操作
 
-# Installation
+# 安装
 
 ```bash
 go get github.com/shengyanli1982/events
 ```
 
-# Quick Start
+# 快速入门
 
-## Methods
+## 方法
 
--   `OnWithTopic`: Register a function for a specific topic.
--   `On`: Register a function for the default topic.
--   `OffWithTopic`: Unregister a function for a specific topic.
--   `Off`: Unregister a function for the default topic.
--   `OnceWithTopic`: Register a function for a specific topic that will be executed only once.
--   `Once`: Register a function for the default topic that will be executed only once.
--   `ResetOnceWithTopic`: Reset an executed function for a specific topic, allowing it to be executed again.
--   `ResetOnce`: Reset an executed function for the default topic, allowing it to be executed again.
--   `EmitWithTopic`: Emit an event for a specific topic.
--   `Emit`: Emit an event for the default topic.
--   `EmitAfterWithTopic`: Emit an event for a specific topic after a delay.
--   `EmitAfter`: Emit an event for the default topic after a delay.
--   `GetMessageHandleFunc`: Get the message handle function for a specific topic.
--   `Stop`: Stop the `EventEmitter`.
+-   `OnWithTopic`: 为特定主题注册函数。
+-   `On`: 为默认主题注册函数。
+-   `OffWithTopic`: 取消特定主题的函数注册。
+-   `Off`: 取消默认主题的函数注册。
+-   `OnceWithTopic`: 为特定主题注册只执行一次的函数。
+-   `Once`: 为默认主题注册只执行一次的函数。
+-   `ResetOnceWithTopic`: 重置特定主题的已执行函数，允许再次执行。
+-   `ResetOnce`: 重置默认主题的已执行函数，允许再次执行。
+-   `EmitWithTopic`: 发射特定主题的事件。
+-   `Emit`: 发射默认主题的事件。
+-   `EmitAfterWithTopic`: 延迟一段时间后发射特定主题的事件。
+-   `EmitAfter`: 延迟一段时间后发射默认主题的事件。
+-   `GetMessageHandleFunc`: 获取特定主题的消息处理函数。
+-   `Stop`: 停止 `EventEmitter`。
 
 > [!TIP]
-> The `OnceWithTopic` and `Once` methods are executed only once. If you want to execute them multiple times, you need to register them multiple times.
+> `OnceWithTopic` 和 `Once` 方法只会执行一次。如果要多次执行它们，需要多次注册。
 >
-> Alternatively, you can use the `ResetOnceWithTopic` and `ResetOnce` methods to reset the executed functions and allow them to be executed again.
+> 或者，可以使用 `ResetOnceWithTopic` 和 `ResetOnce` 方法重置已执行的函数，允许再次执行。
 >
-> The `ResetOnceWithTopic` and `ResetOnce` methods are wrappers for the `OnceWithTopic` and `Once` methods. They retrieve the function first and then register it again.
+> `ResetOnceWithTopic` 和 `ResetOnce` 方法是 `OnceWithTopic` 和 `Once` 方法的包装器。它们首先获取函数，然后再次注册。
 
-## Mode
+## 模式
 
-### 1. Default Mode
+### 1. 默认模式
 
-In default mode, the `EventEmitter` will continue processing events until the `Stop` method is called. All registered functions will be executed for each event.
+在默认模式下，`EventEmitter` 将持续处理事件，直到调用 `Stop` 方法。所有注册的函数都会对每个事件执行。
 
-**Example**
+**示例**
 
 ```go
 package main
@@ -142,7 +141,7 @@ func main() {
 }
 ```
 
-**Result**
+**执行结果**
 
 ```bash
 $ go run demo.go
@@ -158,11 +157,11 @@ $ go run demo.go
 >>>> message1
 ```
 
-### 2. RunOnce Mode
+### 2. RunOnce 模式
 
-In `RunOnce` mode, the `EventEmitter` will continue running until the `Stop` method is called. Only one event will be processed by the registered functions, even if multiple events are emitted. To process the event again, use the `ResetOnceWithTopic` or `ResetOnce` method to reset the function.
+在 `RunOnce` 模式下，`EventEmitter` 将持续运行，直到调用 `Stop` 方法。即使发出多个事件，注册的函数也只会处理一个事件。要再次处理事件，可以使用 `ResetOnceWithTopic` 或 `ResetOnce` 方法重置函数。
 
-**Example**
+**示例**
 
 ```go
 package main
@@ -243,7 +242,7 @@ func main() {
 }
 ```
 
-**Result**
+**执行结果**
 
 ```bash
 $ go run demo.go
