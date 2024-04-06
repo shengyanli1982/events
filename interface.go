@@ -2,22 +2,22 @@ package events
 
 import "time"
 
-// MessageHandleFunc 是一个消息处理函数类型，接收任意类型的消息并返回任意类型的结果和错误。
-// MessageHandleFunc is a message processing function type that receives messages of any type and returns results and errors of any type.
+// MessageHandleFunc 是一个函数类型，它接受任何类型的消息，并返回任何类型的结果和一个错误。
+// MessageHandleFunc is a function type that takes a message of any type and returns a result of any type and an error.
 type MessageHandleFunc = func(msg any) (any, error)
 
-// PipelineInterface 是一个管道接口，用于添加事件到管道、延迟添加事件到管道以及停止管道的操作。
-// PipelineInterface is a pipeline interface for adding events to the pipeline, delaying events to the pipeline, and stopping the pipeline.
+// PipelineInterface 是一个接口，它定义了三个方法：SubmitWithFunc，SubmitAfterWithFunc 和 Stop。
+// PipelineInterface is an interface that defines three methods: SubmitWithFunc, SubmitAfterWithFunc, and Stop.
 type PipelineInterface = interface {
-	// SubmitWithFunc 将一个新的事件添加到管道中，并指定消息处理函数。
-	// SubmitWithFunc adds a new event to the pipeline and specifies the message processing function.
+	// SubmitWithFunc 方法接受一个 MessageHandleFunc 函数和一个任何类型的消息，返回一个错误。
+	// The SubmitWithFunc method takes a MessageHandleFunc function and a message of any type, returning an error.
 	SubmitWithFunc(fn MessageHandleFunc, msg any) error
 
-	// SubmitAfterWithFunc 将一个新的事件添加到管道中，并指定消息处理函数和延迟时间。
-	// SubmitAfterWithFunc adds a new event to the pipeline and specifies the message processing function and delay time.
+	// SubmitAfterWithFunc 方法接受一个 MessageHandleFunc 函数，一个任何类型的消息和一个延迟时间，返回一个错误。
+	// The SubmitAfterWithFunc method takes a MessageHandleFunc function, a message of any type, and a delay time, returning an error.
 	SubmitAfterWithFunc(fn MessageHandleFunc, msg any, delay time.Duration) error
 
-	// Stop 停止管道的运行。
-	// Stop stops the pipeline.
+	// Stop 方法停止管道的运行。
+	// The Stop method stops the pipeline from running.
 	Stop()
 }
