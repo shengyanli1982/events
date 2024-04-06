@@ -44,7 +44,7 @@ func (c *onceCallback) OnAfter(msg, result any, err error) {
 		assert.NoError(c.t, err)
 	} else {
 		assert.Nil(c.t, result)
-		assert.Equal(c.t, events.ErrorTopicExcuteOnced, err)
+		assert.Equal(c.t, events.ErrorTopicExecutedOnce, err)
 	}
 }
 
