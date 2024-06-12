@@ -6,8 +6,8 @@ replace github.com/shengyanli1982/events => ../
 
 require (
 	github.com/shengyanli1982/events v0.0.0-00010101000000-000000000000
-	github.com/shengyanli1982/karta v0.1.11
-	github.com/shengyanli1982/workqueue v0.1.12
+	github.com/shengyanli1982/karta v0.2.1
+	github.com/shengyanli1982/workqueue/v2 v2.1.3
 	github.com/stretchr/testify v1.8.4
 )
 

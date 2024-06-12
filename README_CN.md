@@ -16,9 +16,9 @@
 
 为什么选择 `Events`？它简单、轻量且没有外部依赖。它采用了管道和回调函数的方式，适用于任务分离的应用程序。
 
-`Events` 的重点是注册事件处理函数和发射事件，而将函数的执行留给您来决定。您可以使用 [`karta`](https://github.com/shengyanli1982/karta) 在单独的任务中执行这些函数，因为它实现了 `PipelineInterface` 接口。
+`Events` 的重点是注册事件处理函数和发射事件，而将函数的执行留给您来决定。您可以使用 [`karta`](https://github.com/shengyanli1982/karta) 在单独的任务中执行这些函数，因为它实现了 `Pipeline` 接口。
 
-实现 `PipelineInterface` 接口来处理事件，并在您的应用程序中充分利用 `Events` 的强大功能。
+实现 `Pipeline` 接口来处理事件，并在您的应用程序中充分利用 `Events` 的强大功能。
 
 # 优势
 
@@ -36,12 +36,12 @@ go get github.com/shengyanli1982/events
 
 ## 方法
 
--   `OnWithTopic`: 为特定主题注册函数。
--   `On`: 为默认主题注册函数。
--   `OffWithTopic`: 取消特定主题的函数注册。
--   `Off`: 取消默认主题的函数注册。
--   `OnceWithTopic`: 为特定主题注册只执行一次的函数。
--   `Once`: 为默认主题注册只执行一次的函数。
+-   `RegisterWithTopic`: 为特定主题注册函数。
+-   `Register`: 为默认主题注册函数。
+-   `UnregisterWithTopic`: 取消特定主题的函数注册。
+-   `Unregister`: 取消默认主题的函数注册。
+-   `RegisterOnceWithTopic`: 为特定主题注册只执行一次的函数。
+-   `RegisterOnce`: 为默认主题注册只执行一次的函数。
 -   `ResetOnceWithTopic`: 重置特定主题的已执行函数，允许再次执行。
 -   `ResetOnce`: 重置默认主题的已执行函数，允许再次执行。
 -   `EmitWithTopic`: 发射特定主题的事件。
@@ -74,7 +74,7 @@ import (
 
 	"github.com/shengyanli1982/events"
 	k "github.com/shengyanli1982/karta"
-	"github.com/shengyanli1982/workqueue"
+	wkq "github.com/shengyanli1982/workqueue/v2"
 )
 
 // testTopic 是一个全局变量，表示测试用的主题。
@@ -114,7 +114,7 @@ func main() {
 
 	// 创建一个新的假延迟队列。
 	// Create a new fake delaying queue.
-	queue := k.NewFakeDelayingQueue(workqueue.NewSimpleQueue(nil))
+	queue := k.NewFakeDelayingQueue(wkq.NewQueue(nil))
 
 	// 创建一个新的管道。
 	// Create a new pipeline.
@@ -130,7 +130,7 @@ func main() {
 
 	// 在指定的主题上注册处理器的 testTopicMsgHandleFunc 方法。
 	// Register the testTopicMsgHandleFunc method of the handler on the specified topic.
-	ee.OnWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+	ee.RegisterWithTopic(testTopic, handler.testTopicMsgHandleFunc)
 
 	// 循环 testMaxRounds 次，每次在指定的主题上发出一个带有序号的消息。
 	// Loop testMaxRounds times, each time emitting a numbered message on the specified topic.
@@ -179,7 +179,7 @@ import (
 
 	"github.com/shengyanli1982/events"
 	k "github.com/shengyanli1982/karta"
-	"github.com/shengyanli1982/workqueue"
+	wkq "github.com/shengyanli1982/workqueue/v2"
 )
 
 // testTopic 是一个全局变量，表示测试用的主题。
@@ -219,7 +219,7 @@ func main() {
 
 	// 创建一个新的假延迟队列。
 	// Create a new fake delaying queue.
-	queue := k.NewFakeDelayingQueue(workqueue.NewSimpleQueue(nil))
+	queue := k.NewFakeDelayingQueue(wkq.NewQueue(nil))
 
 	// 创建一个新的管道。
 	// Create a new pipeline.
@@ -235,7 +235,7 @@ func main() {
 
 	// 在指定的主题上注册处理器的 testTopicMsgHandleFunc 方法，该方法只会被执行一次。
 	// Register the testTopicMsgHandleFunc method of the handler on the specified topic. This method will be executed only once.
-	ee.OnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+	ee.RegisterOnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
 
 	// 循环 testMaxRounds 次，每次在指定的主题上发出一个带有序号的消息。
 	// Loop testMaxRounds times, each time emitting a numbered message on the specified topic.
@@ -251,6 +251,7 @@ func main() {
 	// Stop the event emitter.
 	ee.Stop()
 }
+
 ```
 
 **执行结果**

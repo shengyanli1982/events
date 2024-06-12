@@ -1,12 +1,8 @@
-package events
+package internal
 
 import (
 	"sync"
 )
-
-// DefaultSubmitFunc 是一个默认的提交函数，它接受任何类型的消息并返回一个错误。
-// DefaultSubmitFunc is a default submit function that takes a message of any type and returns an error.
-func DefaultSubmitFunc(msg any) error { return nil }
 
 // Event 是一个结构体，它有三个字段：topic，data 和 value。
 // Event is a structure that has three fields: topic, data, and value.

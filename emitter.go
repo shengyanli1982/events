@@ -4,6 +4,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/shengyanli1982/events/internal"
 )
 
 // executeImmediately 是一个常量，它的值为 time.Duration 类型的 0，表示立即执行。
@@ -22,55 +24,13 @@ var ErrorTopicNotExists = errors.New("topic does not exist")
 // ErrorTopicExecutedOnce is a variable, its value is a new error, indicating that the topic has been executed once.
 var ErrorTopicExecutedOnce = errors.New("topic has been executed once")
 
-// handleFuncs 是一个结构体，它包含两个字段：origFunc 和 wrapFunc，都是 MessageHandleFunc 类型的函数。
-// handleFuncs is a structure that contains two fields: origFunc and wrapFunc, both of which are functions of type MessageHandleFunc.
-type handleFuncs struct {
-	// origFunc 是原始的消息处理函数。
-	// origFunc is the original message handling function.
-	origFunc MessageHandleFunc
-
-	// wrapFunc 是包装后的消息处理函数。
-	// wrapFunc is the wrapped message handling function.
-	wrapFunc MessageHandleFunc
-}
-
-// newHandleFuncs 是一个函数，它返回一个新的 handleFuncs 实例。
-// newHandleFuncs is a function that returns a new instance of handleFuncs.
-func newHandleFuncs() *handleFuncs {
-	return &handleFuncs{}
-}
-
-// SetOrigMsgHandleFunc 是 handleFuncs 的一个方法，它设置 origFunc 字段的值。
-// SetOrigMsgHandleFunc is a method of handleFuncs that sets the value of the origFunc field.
-func (h *handleFuncs) SetOrigMsgHandleFunc(fn MessageHandleFunc) {
-	h.origFunc = fn
-}
-
-// GetOrigMsgHandleFunc 是 handleFuncs 的一个方法，它返回 origFunc 字段的值。
-// GetOrigMsgHandleFunc is a method of handleFuncs that returns the value of the origFunc field.
-func (h *handleFuncs) GetOrigMsgHandleFunc() MessageHandleFunc {
-	return h.origFunc
-}
-
-// SetWrapMsgHandleFunc 是 handleFuncs 的一个方法，它设置 wrapFunc 字段的值。
-// SetWrapMsgHandleFunc is a method of handleFuncs that sets the value of the wrapFunc field.
-func (h *handleFuncs) SetWrapMsgHandleFunc(fn MessageHandleFunc) {
-	h.wrapFunc = fn
-}
-
-// GetWrapMsgHandleFunc 是 handleFuncs 的一个方法，它返回 wrapFunc 字段的值。
-// GetWrapMsgHandleFunc is a method of handleFuncs that returns the value of the wrapFunc field.
-func (h *handleFuncs) GetWrapMsgHandleFunc() MessageHandleFunc {
-	return h.wrapFunc
-}
-
 // EventEmitter 是一个结构体，它包含五个字段：pipeline，once，eventPool，lock 和 registerFuncs。
 // EventEmitter is a structure that contains five fields: pipeline, once, eventPool, lock, and registerFuncs.
 
 type EventEmitter struct {
-	// pipeline 是 PipelineInterface 类型，用于处理事件。
-	// pipeline is of type PipelineInterface, used for handling events.
-	pipeline PipelineInterface
+	// pipeline 是 Pipeline 类型，用于处理事件。
+	// pipeline is of type Pipeline, used for handling events.
+	pipeline Pipeline
 
 	// once 是 sync.Once 类型，确保某些操作只执行一次。
 	// once is of type sync.Once, ensuring that certain operations are performed only once.
@@ -78,7 +38,7 @@ type EventEmitter struct {
 
 	// eventPool 是 EventPool 类型的指针，用于管理事件对象的内存。
 	// eventPool is a pointer to EventPool, used for managing the memory of event objects.
-	eventPool *EventPool
+	eventPool *internal.EventPool
 
 	// lock 是 sync.RWMutex 类型，用于保护 registerFuncs 的并发访问。
 	// lock is of type sync.RWMutex, used to protect concurrent access to registerFuncs.
@@ -89,9 +49,9 @@ type EventEmitter struct {
 	registerFuncs map[string]*handleFuncs
 }
 
-// NewEventEmitter 是一个函数，它接受一个 PipelineInterface 类型的参数，并返回一个 EventEmitter 类型的指针。
-// NewEventEmitter is a function that takes a parameter of type PipelineInterface and returns a pointer of type EventEmitter.
-func NewEventEmitter(pl PipelineInterface) *EventEmitter {
+// NewEventEmitter 是一个函数，它接受一个 Pipeline 类型的参数，并返回一个 EventEmitter 类型的指针。
+// NewEventEmitter is a function that takes a parameter of type Pipeline and returns a pointer of type EventEmitter.
+func NewEventEmitter(pl Pipeline) *EventEmitter {
 	// 如果传入的 pipeline 为 nil，则返回 nil。
 	// If the incoming pipeline is nil, return nil.
 	if pl == nil {
@@ -111,7 +71,7 @@ func NewEventEmitter(pl PipelineInterface) *EventEmitter {
 
 		// 初始化 eventPool 字段。
 		// Initialize the eventPool field.
-		eventPool: NewEventPool(),
+		eventPool: internal.NewEventPool(),
 
 		// 初始化 lock 字段。
 		// Initialize the lock field.
@@ -139,9 +99,9 @@ func (ee *EventEmitter) Stop() {
 	})
 }
 
-// OnWithTopic 是 EventEmitter 的一个方法，它接受一个主题和一个消息处理函数，将这个函数注册到指定的主题上。
-// OnWithTopic is a method of EventEmitter that takes a topic and a message handling function and registers this function to the specified topic.
-func (ee *EventEmitter) OnWithTopic(topic string, fn MessageHandleFunc) {
+// RegisterWithTopic 是 EventEmitter 的一个方法，它接受一个主题和一个消息处理函数，将这个函数注册到指定的主题上。
+// RegisterWithTopic is a method of EventEmitter that takes a topic and a message handling function and registers this function to the specified topic.
+func (ee *EventEmitter) RegisterWithTopic(topic string, fn MessageHandleFunc) {
 	// 锁定 EventEmitter，以防止并发修改。
 	// Lock the EventEmitter to prevent concurrent modifications.
 	ee.lock.Lock()
@@ -160,11 +120,11 @@ func (ee *EventEmitter) OnWithTopic(topic string, fn MessageHandleFunc) {
 	fns.SetWrapMsgHandleFunc(func(msg any) (any, error) {
 		// 使用 defer 语句在函数结束时将事件对象放回到池中。
 		// Use the defer statement to put the event object back into the pool when the function ends.
-		defer ee.eventPool.Put(msg.(*Event))
+		defer ee.eventPool.Put(msg.(*internal.Event))
 
 		// 调用原始的消息处理函数，并返回结果。
 		// Call the original message handling function and return the result.
-		return fn(msg.(*Event).GetData())
+		return fn(msg.(*internal.Event).GetData())
 	})
 
 	// 将新的 handleFuncs 实例注册到指定的主题上。
@@ -172,17 +132,17 @@ func (ee *EventEmitter) OnWithTopic(topic string, fn MessageHandleFunc) {
 	ee.registerFuncs[topic] = fns
 }
 
-// On 是 EventEmitter 的一个方法，它接受一个消息处理函数，将这个函数注册到默认的主题上。
-// On is a method of EventEmitter that takes a message handling function and registers this function to the default topic.
-func (ee *EventEmitter) On(fn MessageHandleFunc) {
+// Register 是 EventEmitter 的一个方法，它接受一个消息处理函数，将这个函数注册到默认的主题上。
+// Register is a method of EventEmitter that takes a message handling function and registers this function to the default topic.
+func (ee *EventEmitter) Register(fn MessageHandleFunc) {
 	// 调用 OnWithTopic 方法，将消息处理函数注册到默认的主题上。
 	// Call the OnWithTopic method to register the message handling function to the default topic.
-	ee.OnWithTopic(DefaultTopicName, fn)
+	ee.RegisterWithTopic(DefaultTopicName, fn)
 }
 
-// OffWithTopic 是 EventEmitter 的一个方法，它接受一个主题，将这个主题上注册的消息处理函数移除。
-// OffWithTopic is a method of EventEmitter that takes a topic and removes the message handling function registered on this topic.
-func (ee *EventEmitter) OffWithTopic(topic string) {
+// UnregisterWithTopic 是 EventEmitter 的一个方法，它接受一个主题，将这个主题上注册的消息处理函数移除。
+// UnregisterWithTopic is a method of EventEmitter that takes a topic and removes the message handling function registered on this topic.
+func (ee *EventEmitter) UnregisterWithTopic(topic string) {
 	// 锁定 EventEmitter，以防止并发修改。
 	// Lock the EventEmitter to prevent concurrent modifications.
 	ee.lock.Lock()
@@ -193,17 +153,17 @@ func (ee *EventEmitter) OffWithTopic(topic string) {
 	delete(ee.registerFuncs, topic)
 }
 
-// Off 是 EventEmitter 的一个方法，它将默认主题上注册的消息处理函数移除。
-// Off is a method of EventEmitter that removes the message handling function registered on the default topic.
-func (ee *EventEmitter) Off() {
+// Unregister 是 EventEmitter 的一个方法，它将默认主题上注册的消息处理函数移除。
+// Unregister is a method of EventEmitter that removes the message handling function registered on the default topic.
+func (ee *EventEmitter) Unregister() {
 	// 调用 OffWithTopic 方法，将默认主题上注册的消息处理函数移除。
 	// Call the OffWithTopic method to remove the message handling function registered on the default topic.
-	ee.OffWithTopic(DefaultTopicName)
+	ee.UnregisterWithTopic(DefaultTopicName)
 }
 
-// OnceWithTopic 是 EventEmitter 的一个方法，它接受一个主题和一个消息处理函数，将这个函数注册到指定的主题上，并确保这个函数只执行一次。
-// OnceWithTopic is a method of EventEmitter that takes a topic and a message handling function, registers this function to the specified topic, and ensures that this function is executed only once.
-func (ee *EventEmitter) OnceWithTopic(topic string, fn MessageHandleFunc) {
+// RegisterOnceWithTopic 是 EventEmitter 的一个方法，它接受一个主题和一个消息处理函数，将这个函数注册到指定的主题上，并确保这个函数只执行一次。
+// RegisterOnceWithTopic is a method of EventEmitter that takes a topic and a message handling function, registers this function to the specified topic, and ensures that this function is executed only once.
+func (ee *EventEmitter) RegisterOnceWithTopic(topic string, fn MessageHandleFunc) {
 	// 锁定 EventEmitter，以防止并发修改。
 	// Lock the EventEmitter to prevent concurrent modifications.
 	ee.lock.Lock()
@@ -227,7 +187,7 @@ func (ee *EventEmitter) OnceWithTopic(topic string, fn MessageHandleFunc) {
 
 		// 使用 defer 语句在函数结束时将事件对象放回到池中。
 		// Use the defer statement to put the event object back into the pool when the function ends.
-		defer ee.eventPool.Put(msg.(*Event))
+		defer ee.eventPool.Put(msg.(*internal.Event))
 
 		// 设置错误为 ErrorTopicExecutedOnce。
 		// Set the error to ErrorTopicExecutedOnce.
@@ -236,7 +196,7 @@ func (ee *EventEmitter) OnceWithTopic(topic string, fn MessageHandleFunc) {
 		// 使用 once 确保原始的消息处理函数只执行一次，并返回结果。
 		// Use once to ensure that the original message handling function is executed only once and return the result.
 		once.Do(func() {
-			data, err = fn(msg.(*Event).GetData())
+			data, err = fn(msg.(*internal.Event).GetData())
 		})
 
 		// 返回结果和错误。
@@ -249,12 +209,12 @@ func (ee *EventEmitter) OnceWithTopic(topic string, fn MessageHandleFunc) {
 	ee.registerFuncs[topic] = fns
 }
 
-// Once 是 EventEmitter 的一个方法，它接受一个消息处理函数，将这个函数注册到默认的主题上，并确保这个函数只执行一次。
-// Once is a method of EventEmitter that takes a message handling function, registers this function to the default topic, and ensures that this function is executed only once.
-func (ee *EventEmitter) Once(fn MessageHandleFunc) {
+// RegisterOnce 是 EventEmitter 的一个方法，它接受一个消息处理函数，将这个函数注册到默认的主题上，并确保这个函数只执行一次。
+// RegisterOnce is a method of EventEmitter that takes a message handling function, registers this function to the default topic, and ensures that this function is executed only once.
+func (ee *EventEmitter) RegisterOnce(fn MessageHandleFunc) {
 	// 调用 OnceWithTopic 方法，将消息处理函数注册到默认的主题上，并确保这个函数只执行一次。
 	// Call the OnceWithTopic method to register the message handling function to the default topic and ensure that this function is executed only once.
-	ee.OnceWithTopic(DefaultTopicName, fn)
+	ee.RegisterOnceWithTopic(DefaultTopicName, fn)
 }
 
 // ResetOnceWithTopic 是 EventEmitter 的一个方法，它接受一个主题，将这个主题上注册的消息处理函数重置，以便可以再次执行。
@@ -272,7 +232,7 @@ func (ee *EventEmitter) ResetOnceWithTopic(topic string) error {
 
 	// 使用 OnceWithTopic 方法，将消息处理函数重新注册到指定的主题上，并确保这个函数只执行一次。
 	// Use the OnceWithTopic method to re-register the message handling function to the specified topic and ensure that this function is executed only once.
-	ee.OnceWithTopic(topic, origHandleFunc)
+	ee.RegisterOnceWithTopic(topic, origHandleFunc)
 
 	// 返回 nil，表示没有错误。
 	// Return nil to indicate that there is no error.
