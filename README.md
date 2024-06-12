@@ -1,7 +1,7 @@
 English | [中文](./README_CN.md)
 
 <div align="center">
-    <img src="assets/logo.png" alt="logo" width="500px">
+    <img src="assets/logo.png" alt="logo" width="550px">
 </div>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/shengyanli1982/events)](https://goreportcard.com/report/github.com/shengyanli1982/events)
