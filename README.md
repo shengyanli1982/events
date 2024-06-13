@@ -8,23 +8,25 @@ English | [中文](./README_CN.md)
 [![Build Status](https://github.com/shengyanli1982/events/actions/workflows/test.yaml/badge.svg)](https://github.com/shengyanli1982/events/actions)
 [![Go Reference](https://pkg.go.dev/badge/github.com/shengyanli1982/events.svg)](https://pkg.go.dev/github.com/shengyanli1982/events)
 
-# Introduction
+# Events: A Simple Implementation of Node.js 'events' in Golang
 
-`Events` is a simple implementation of the Node.js 'events' standard library in Golang. It provides a pub/sub mechanism for emitting events and registering functions to handle those events.
+`Events` is inspired by the Node.js standard library's `events` module and aims to offer a highly convenient local publish-subscribe library. It provides various publish/subscribe mechanisms to emit events and register functions to handle them efficiently.
 
-With `Events`, you can easily add event-driven functionality to your application. It is designed to be used in conjunction with [`karta`](https://github.com/shengyanli1982/karta).
+With `Events`, you can easily incorporate event-driven functionality into your application. It is designed to be used alongside [`karta`](https://github.com/shengyanli1982/karta), enhancing its capabilities.
 
-Why choose `Events`? It is simple, lightweight, and has no external dependencies. It follows a pipeline and callback function approach, making it suitable for task separation applications.
+While `Events` does not fully implement the Node.js `events` standard library interface, it adapts to real-world needs by leveraging Golang's standard interface approach to achieve the desired functionality.
 
-`Events` focuses on registering functions for events and emitting events, leaving the execution of functions up to you. You can use [`karta`](https://github.com/shengyanli1982/karta) to execute the functions in a separate task, as it implements the `Pipeline` interface.
+### Why Choose `Events`?
 
-Implement the `Pipeline` interface to process events and leverage the power of `Events` in your application.
+-   **Simplicity**: Easy to use with a straightforward API.
+-   **Lightweight**: Minimal overhead with no external dependencies.
+-   **Event-Driven**: Follows a pipeline and callback function approach, ideal for task separation applications.
 
-# Advantages
+`Events` excels in registering functions for events and emitting those events, leaving the execution of functions up to you. By using [`karta`](https://github.com/shengyanli1982/karta), you can execute functions in separate tasks, as it implements the `Pipeline` interface.
 
--   Simple and user-friendly
--   No external dependencies required
--   Supports callback functions for actions
+### Leverage `Events` in Your Application
+
+This allows you to harness the full power of `Events` in your application, enabling robust and flexible event-driven architecture.
 
 # Installation
 
