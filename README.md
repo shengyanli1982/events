@@ -1,30 +1,32 @@
 English | [中文](./README_CN.md)
 
 <div align="center">
-    <img src="assets/logo.png" alt="logo" width="500px">
+    <img src="assets/logo.png" alt="logo" width="550px">
 </div>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/shengyanli1982/events)](https://goreportcard.com/report/github.com/shengyanli1982/events)
 [![Build Status](https://github.com/shengyanli1982/events/actions/workflows/test.yaml/badge.svg)](https://github.com/shengyanli1982/events/actions)
 [![Go Reference](https://pkg.go.dev/badge/github.com/shengyanli1982/events.svg)](https://pkg.go.dev/github.com/shengyanli1982/events)
 
-# Introduction
+# Events: A Simple Implementation of Node.js 'events' in Golang
 
-`Events` is a simple implementation of the Node.js 'events' standard library in Golang. It provides a pub/sub mechanism for emitting events and registering functions to handle those events.
+`Events` is inspired by the Node.js standard library's `events` module and aims to offer a highly convenient local publish-subscribe library. It provides various publish/subscribe mechanisms to emit events and register functions to handle them efficiently.
 
-With `Events`, you can easily add event-driven functionality to your application. It is designed to be used in conjunction with [`karta`](https://github.com/shengyanli1982/karta).
+With `Events`, you can easily incorporate event-driven functionality into your application. It is designed to be used alongside [`karta`](https://github.com/shengyanli1982/karta), enhancing its capabilities.
 
-Why choose `Events`? It is simple, lightweight, and has no external dependencies. It follows a pipeline and callback function approach, making it suitable for task separation applications.
+While `Events` does not fully implement the Node.js `events` standard library interface, it adapts to real-world needs by leveraging Golang's standard interface approach to achieve the desired functionality.
 
-`Events` focuses on registering functions for events and emitting events, leaving the execution of functions up to you. You can use [`karta`](https://github.com/shengyanli1982/karta) to execute the functions in a separate task, as it implements the `PipelineInterface` interface.
+### Why Choose `Events`?
 
-Implement the `PipelineInterface` interface to process events and leverage the power of `Events` in your application.
+-   **Simplicity**: Easy to use with a straightforward API.
+-   **Lightweight**: Minimal overhead with no external dependencies.
+-   **Event-Driven**: Follows a pipeline and callback function approach, ideal for task separation applications.
 
-# Advantages
+`Events` excels in registering functions for events and emitting those events, leaving the execution of functions up to you. By using [`karta`](https://github.com/shengyanli1982/karta), you can execute functions in separate tasks, as it implements the `Pipeline` interface.
 
--   Simple and user-friendly
--   No external dependencies required
--   Supports callback functions for actions
+### Leverage `Events` in Your Application
+
+This allows you to harness the full power of `Events` in your application, enabling robust and flexible event-driven architecture.
 
 # Installation
 
@@ -36,12 +38,12 @@ go get github.com/shengyanli1982/events
 
 ## Methods
 
--   `OnWithTopic`: Register a function for a specific topic.
--   `On`: Register a function for the default topic.
--   `OffWithTopic`: Unregister a function for a specific topic.
--   `Off`: Unregister a function for the default topic.
--   `OnceWithTopic`: Register a function for a specific topic that will be executed only once.
--   `Once`: Register a function for the default topic that will be executed only once.
+-   `RegisterWithTopic`: Register a function for a specific topic.
+-   `Register`: Register a function for the default topic.
+-   `UnregisterWithTopic`: Unregister a function for a specific topic.
+-   `Unregister`: Unregister a function for the default topic.
+-   `RegisterOnceWithTopic`: Register a function for a specific topic that will be executed only once.
+-   `RegisterOnce`: Register a function for the default topic that will be executed only once.
 -   `ResetOnceWithTopic`: Reset an executed function for a specific topic, allowing it to be executed again.
 -   `ResetOnce`: Reset an executed function for the default topic, allowing it to be executed again.
 -   `EmitWithTopic`: Emit an event for a specific topic.
@@ -75,7 +77,7 @@ import (
 
 	"github.com/shengyanli1982/events"
 	k "github.com/shengyanli1982/karta"
-	"github.com/shengyanli1982/workqueue"
+	wkq "github.com/shengyanli1982/workqueue/v2"
 )
 
 // testTopic 是一个全局变量，表示测试用的主题。
@@ -115,7 +117,7 @@ func main() {
 
 	// 创建一个新的假延迟队列。
 	// Create a new fake delaying queue.
-	queue := k.NewFakeDelayingQueue(workqueue.NewSimpleQueue(nil))
+	queue := k.NewFakeDelayingQueue(wkq.NewQueue(nil))
 
 	// 创建一个新的管道。
 	// Create a new pipeline.
@@ -131,7 +133,7 @@ func main() {
 
 	// 在指定的主题上注册处理器的 testTopicMsgHandleFunc 方法。
 	// Register the testTopicMsgHandleFunc method of the handler on the specified topic.
-	ee.OnWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+	ee.RegisterWithTopic(testTopic, handler.testTopicMsgHandleFunc)
 
 	// 循环 testMaxRounds 次，每次在指定的主题上发出一个带有序号的消息。
 	// Loop testMaxRounds times, each time emitting a numbered message on the specified topic.
@@ -180,7 +182,7 @@ import (
 
 	"github.com/shengyanli1982/events"
 	k "github.com/shengyanli1982/karta"
-	"github.com/shengyanli1982/workqueue"
+	wkq "github.com/shengyanli1982/workqueue/v2"
 )
 
 // testTopic 是一个全局变量，表示测试用的主题。
@@ -220,7 +222,7 @@ func main() {
 
 	// 创建一个新的假延迟队列。
 	// Create a new fake delaying queue.
-	queue := k.NewFakeDelayingQueue(workqueue.NewSimpleQueue(nil))
+	queue := k.NewFakeDelayingQueue(wkq.NewQueue(nil))
 
 	// 创建一个新的管道。
 	// Create a new pipeline.
@@ -236,7 +238,7 @@ func main() {
 
 	// 在指定的主题上注册处理器的 testTopicMsgHandleFunc 方法，该方法只会被执行一次。
 	// Register the testTopicMsgHandleFunc method of the handler on the specified topic. This method will be executed only once.
-	ee.OnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+	ee.RegisterOnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
 
 	// 循环 testMaxRounds 次，每次在指定的主题上发出一个带有序号的消息。
 	// Loop testMaxRounds times, each time emitting a numbered message on the specified topic.

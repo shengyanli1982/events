@@ -6,9 +6,9 @@ import "time"
 // MessageHandleFunc is a function type that takes a message of any type and returns a result of any type and an error.
 type MessageHandleFunc = func(msg any) (any, error)
 
-// PipelineInterface 是一个接口，它定义了三个方法：SubmitWithFunc，SubmitAfterWithFunc 和 Stop。
-// PipelineInterface is an interface that defines three methods: SubmitWithFunc, SubmitAfterWithFunc, and Stop.
-type PipelineInterface = interface {
+// Pipeline 是一个接口，它定义了三个方法：SubmitWithFunc，SubmitAfterWithFunc 和 Stop。
+// Pipeline is an interface that defines three methods: SubmitWithFunc, SubmitAfterWithFunc, and Stop.
+type Pipeline = interface {
 	// SubmitWithFunc 方法接受一个 MessageHandleFunc 函数和一个任何类型的消息，返回一个错误。
 	// The SubmitWithFunc method takes a MessageHandleFunc function and a message of any type, returning an error.
 	SubmitWithFunc(fn MessageHandleFunc, msg any) error

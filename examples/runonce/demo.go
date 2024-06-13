@@ -6,7 +6,7 @@ import (
 
 	"github.com/shengyanli1982/events"
 	k "github.com/shengyanli1982/karta"
-	"github.com/shengyanli1982/workqueue"
+	wkq "github.com/shengyanli1982/workqueue/v2"
 )
 
 // testTopic 是一个全局变量，表示测试用的主题。
@@ -46,7 +46,7 @@ func main() {
 
 	// 创建一个新的假延迟队列。
 	// Create a new fake delaying queue.
-	queue := k.NewFakeDelayingQueue(workqueue.NewSimpleQueue(nil))
+	queue := k.NewFakeDelayingQueue(wkq.NewQueue(nil))
 
 	// 创建一个新的管道。
 	// Create a new pipeline.
@@ -62,7 +62,7 @@ func main() {
 
 	// 在指定的主题上注册处理器的 testTopicMsgHandleFunc 方法，该方法只会被执行一次。
 	// Register the testTopicMsgHandleFunc method of the handler on the specified topic. This method will be executed only once.
-	ee.OnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+	ee.RegisterOnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
 
 	// 循环 testMaxRounds 次，每次在指定的主题上发出一个带有序号的消息。
 	// Loop testMaxRounds times, each time emitting a numbered message on the specified topic.

@@ -1,30 +1,32 @@
 [English](./README.md) | 中文
 
 <div align="center">
-    <img src="assets/logo.png" alt="logo" width="500px">
+    <img src="assets/logo.png" alt="logo" width="550px">
 </div>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/shengyanli1982/events)](https://goreportcard.com/report/github.com/shengyanli1982/events)
 [![Build Status](https://github.com/shengyanli1982/events/actions/workflows/test.yaml/badge.svg)](https://github.com/shengyanli1982/events/actions)
 [![Go Reference](https://pkg.go.dev/badge/github.com/shengyanli1982/events.svg)](https://pkg.go.dev/github.com/shengyanli1982/events)
 
-# 简介
+# Events：Golang 中 Node.js 'events'的简单实现
 
-`Events` 是一个在 Golang 中简单实现了 Node.js 'events' 标准库的库。它提供了一个发布/订阅机制，用于发射事件和注册处理这些事件的函数。
+`Events` 受到 Node.js 标准库的 `events` 模块的启发，提供一个高度便利的本地发布-订阅库。它提供了多种发布/订阅机制，用于有效地发出事件并注册函数来处理它们。
 
-通过使用 `Events`，您可以轻松地为应用程序添加事件驱动的功能。它被设计用于与 [`karta`](https://github.com/shengyanli1982/karta) 结合使用。
+使用 `Events`，您可以轻松地将事件驱动功能纳入您的应用程序。它旨在与[`karta`](https://github.com/shengyanli1982/karta)一起使用，增强其功能。
 
-为什么选择 `Events`？它简单、轻量且没有外部依赖。它采用了管道和回调函数的方式，适用于任务分离的应用程序。
+虽然 `Events` 并未完全实现 Node.js `events` 标准库接口，但它通过利用 Golang 的标准接口方法来适应实际需求，以实现所需的功能。
 
-`Events` 的重点是注册事件处理函数和发射事件，而将函数的执行留给您来决定。您可以使用 [`karta`](https://github.com/shengyanli1982/karta) 在单独的任务中执行这些函数，因为它实现了 `PipelineInterface` 接口。
+### 为什么选择 `Events`？
 
-实现 `PipelineInterface` 接口来处理事件，并在您的应用程序中充分利用 `Events` 的强大功能。
+-   **简单性**：使用简单，API 直观。
+-   **轻量级**：最小的开销，无需外部依赖。
+-   **事件驱动**：遵循管道和回调函数方法，非常适合任务分离应用。
 
-# 优势
+`Events` 擅长为事件注册函数并发出这些事件，将函数的执行留给您。通过使用[`karta`](https://github.com/shengyanli1982/karta)，您可以在单独的任务中执行函数，因为它实现了 `Pipeline` 接口。
 
--   简单易用
--   无需外部依赖
--   支持回调函数进行操作
+### 在您的应用程序中使用 `Events`
+
+这使您能够在应用程序中充分利用 `Events` 的强大功能，实现健壮且灵活的事件驱动架构。
 
 # 安装
 
@@ -36,12 +38,12 @@ go get github.com/shengyanli1982/events
 
 ## 方法
 
--   `OnWithTopic`: 为特定主题注册函数。
--   `On`: 为默认主题注册函数。
--   `OffWithTopic`: 取消特定主题的函数注册。
--   `Off`: 取消默认主题的函数注册。
--   `OnceWithTopic`: 为特定主题注册只执行一次的函数。
--   `Once`: 为默认主题注册只执行一次的函数。
+-   `RegisterWithTopic`: 为特定主题注册函数。
+-   `Register`: 为默认主题注册函数。
+-   `UnregisterWithTopic`: 取消特定主题的函数注册。
+-   `Unregister`: 取消默认主题的函数注册。
+-   `RegisterOnceWithTopic`: 为特定主题注册只执行一次的函数。
+-   `RegisterOnce`: 为默认主题注册只执行一次的函数。
 -   `ResetOnceWithTopic`: 重置特定主题的已执行函数，允许再次执行。
 -   `ResetOnce`: 重置默认主题的已执行函数，允许再次执行。
 -   `EmitWithTopic`: 发射特定主题的事件。
@@ -74,7 +76,7 @@ import (
 
 	"github.com/shengyanli1982/events"
 	k "github.com/shengyanli1982/karta"
-	"github.com/shengyanli1982/workqueue"
+	wkq "github.com/shengyanli1982/workqueue/v2"
 )
 
 // testTopic 是一个全局变量，表示测试用的主题。
@@ -114,7 +116,7 @@ func main() {
 
 	// 创建一个新的假延迟队列。
 	// Create a new fake delaying queue.
-	queue := k.NewFakeDelayingQueue(workqueue.NewSimpleQueue(nil))
+	queue := k.NewFakeDelayingQueue(wkq.NewQueue(nil))
 
 	// 创建一个新的管道。
 	// Create a new pipeline.
@@ -130,7 +132,7 @@ func main() {
 
 	// 在指定的主题上注册处理器的 testTopicMsgHandleFunc 方法。
 	// Register the testTopicMsgHandleFunc method of the handler on the specified topic.
-	ee.OnWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+	ee.RegisterWithTopic(testTopic, handler.testTopicMsgHandleFunc)
 
 	// 循环 testMaxRounds 次，每次在指定的主题上发出一个带有序号的消息。
 	// Loop testMaxRounds times, each time emitting a numbered message on the specified topic.
@@ -179,7 +181,7 @@ import (
 
 	"github.com/shengyanli1982/events"
 	k "github.com/shengyanli1982/karta"
-	"github.com/shengyanli1982/workqueue"
+	wkq "github.com/shengyanli1982/workqueue/v2"
 )
 
 // testTopic 是一个全局变量，表示测试用的主题。
@@ -219,7 +221,7 @@ func main() {
 
 	// 创建一个新的假延迟队列。
 	// Create a new fake delaying queue.
-	queue := k.NewFakeDelayingQueue(workqueue.NewSimpleQueue(nil))
+	queue := k.NewFakeDelayingQueue(wkq.NewQueue(nil))
 
 	// 创建一个新的管道。
 	// Create a new pipeline.
@@ -235,7 +237,7 @@ func main() {
 
 	// 在指定的主题上注册处理器的 testTopicMsgHandleFunc 方法，该方法只会被执行一次。
 	// Register the testTopicMsgHandleFunc method of the handler on the specified topic. This method will be executed only once.
-	ee.OnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+	ee.RegisterOnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
 
 	// 循环 testMaxRounds 次，每次在指定的主题上发出一个带有序号的消息。
 	// Loop testMaxRounds times, each time emitting a numbered message on the specified topic.
@@ -251,6 +253,7 @@ func main() {
 	// Stop the event emitter.
 	ee.Stop()
 }
+
 ```
 
 **执行结果**
