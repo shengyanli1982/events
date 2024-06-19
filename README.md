@@ -24,9 +24,44 @@ While `Events` does not fully implement the Node.js `events` standard library in
 
 `Events` excels in registering functions for events and emitting those events, leaving the execution of functions up to you. By using [`karta`](https://github.com/shengyanli1982/karta), you can execute functions in separate tasks, as it implements the `Pipeline` interface.
 
-### Leverage `Events` in Your Application
+### How `Events` Can Solve Problems
 
-This allows you to harness the full power of `Events` in your application, enabling robust and flexible event-driven architecture.
+`Events` is a Golang library inspired by Node.js's `events` module, implementing a publish-subscribe pattern. Here are the key problems it addresses:
+
+1. **Decoupling Components**:
+
+    - `Events` enables event-driven communication, reducing direct dependencies between components. This improves modularity and allows for independent development and testing.
+
+2. **Asynchronous Task Handling**:
+
+    - It facilitates asynchronous processing by allowing events to be emitted and handled independently. This is ideal for applications that require handling many concurrent tasks.
+
+3. **Simplified Event Management**:
+
+    - `Events` offers a straightforward way to register and trigger events, automatically invoking handlers when events occur.
+
+4. **Enhanced Task Separation**:
+
+    - Combined with `karta`, `Events` supports further task separation and parallel execution, improving performance and responsiveness.
+
+5. **Lightweight Solution**:
+    - With no external dependencies, `Events` is lightweight and easy to integrate, making it perfect for small or microservice applications.
+
+### Practical Use Cases
+
+1. **Logging Systems**:
+
+    - Manage logging events by emitting log events and handling them with functions that write to files or databases.
+
+2. **Real-Time Notification Systems**:
+
+    - Handle real-time notifications in social media or chat applications by emitting events for new messages and notifying users through handlers.
+
+3. **Monitoring and Alerting Systems**:
+
+    - Emit alert events when anomalies are detected in monitoring systems, with handlers sending alerts via email, SMS, etc.
+
+In summary, `Events` effectively decouples components, handles asynchronous tasks, and simplifies event management. It is ideal for high-concurrency and high-performance applications, providing a robust solution for integrating event-driven architecture.
 
 # Installation
 
@@ -54,11 +89,12 @@ go get github.com/shengyanli1982/events
 -   `Stop`: Stop the `EventEmitter`.
 
 > [!TIP]
-> The `OnceWithTopic` and `Once` methods are executed only once. If you want to execute them multiple times, you need to register them multiple times.
+>
+> The `RegisterOnceWithTopic` and `RegisterOnce` methods are executed only once. If you want to execute them multiple times, you need to register them multiple times.
 >
 > Alternatively, you can use the `ResetOnceWithTopic` and `ResetOnce` methods to reset the executed functions and allow them to be executed again.
 >
-> The `ResetOnceWithTopic` and `ResetOnce` methods are wrappers for the `OnceWithTopic` and `Once` methods. They retrieve the function first and then register it again.
+> The `ResetOnceWithTopic` and `ResetOnce` methods are wrappers for the `RegisterOnceWithTopic` and `RegisterOnce` methods. They retrieve the function first and then register it again.
 
 ## Mode
 
@@ -108,8 +144,6 @@ func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
 	return msg, nil
 }
 
-// main 是程序的入口点。
-// main is the entry point of the program.
 func main() {
 	// 创建一个新的配置。
 	// Create a new configuration.
@@ -213,8 +247,6 @@ func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
 	return msg, nil
 }
 
-// main 是程序的入口点。
-// main is the entry point of the program.
 func main() {
 	// 创建一个新的配置。
 	// Create a new configuration.
