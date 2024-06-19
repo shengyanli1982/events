@@ -37,8 +37,6 @@ func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
 	return msg, nil
 }
 
-// main 是程序的入口点。
-// main is the entry point of the program.
 func main() {
 	// 创建一个新的配置。
 	// Create a new configuration.
