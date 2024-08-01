@@ -1,4 +1,4 @@
-module github.com/shengyanli1982/events/examples/runonce
+module github.com/shengyanli1982/events/examples/lazy
 
 go 1.19
 
