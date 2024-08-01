@@ -8,13 +8,13 @@ English | [中文](./README_CN.md)
 [![Build Status](https://github.com/shengyanli1982/events/actions/workflows/test.yaml/badge.svg)](https://github.com/shengyanli1982/events/actions)
 [![Go Reference](https://pkg.go.dev/badge/github.com/shengyanli1982/events.svg)](https://pkg.go.dev/github.com/shengyanli1982/events)
 
-# Events: A Simple Implementation of Node.js 'events' in Golang
+# Events: A Simple Implementation of Node.js `events` in Golang
 
-`Events` is inspired by the Node.js standard library's `events` module and aims to offer a highly convenient local publish-subscribe library. It provides various publish/subscribe mechanisms to emit events and register functions to handle them efficiently.
+`Events` is inspired by the Node.js standard library`s `events` module and aims to offer a highly convenient local publish-subscribe library. It provides various publish/subscribe mechanisms to emit events and register functions to handle them efficiently.
 
 With `Events`, you can easily incorporate event-driven functionality into your application. It is designed to be used alongside [`karta`](https://github.com/shengyanli1982/karta), enhancing its capabilities.
 
-While `Events` does not fully implement the Node.js `events` standard library interface, it adapts to real-world needs by leveraging Golang's standard interface approach to achieve the desired functionality.
+While `Events` does not fully implement the Node.js `events` standard library interface, it adapts to real-world needs by leveraging Golang`s standard interface approach to achieve the desired functionality.
 
 ### Why Choose `Events`?
 
@@ -26,7 +26,7 @@ While `Events` does not fully implement the Node.js `events` standard library in
 
 ### How `Events` Can Solve Problems
 
-`Events` is a Golang library inspired by Node.js's `events` module, implementing a publish-subscribe pattern. Here are the key problems it addresses:
+`Events` is a Golang library inspired by Node.js`s `events` module, implementing a publish-subscribe pattern. Here are the key problems it addresses:
 
 1. **Decoupling Components**:
 
@@ -293,4 +293,103 @@ func main() {
 ```bash
 $ go run demo.go
 >>>> message0
+```
+
+## Dark Magic
+
+The `NewSimpleEventEmitter` method is a lesser-known feature of the events project, located in the `/contrib/lazy` directory. This method allows for the creation of an `EventEmitter` object with various pre-configured defaults. The behavior of the `EventEmitter` created using this method is identical to one created with the `NewEventEmitter` method.
+
+While the `NewSimpleEventEmitter` method may not offer as much flexibility as the `NewEventEmitter` method, it is an excellent option for those who prefer simplicity over customization.
+
+If you don't have specific requirements or don't need to customize parameters, the `NewSimpleEventEmitter` method can be a smart choice.
+
+Please note that the `NewSimpleEventEmitter` method is not directly exposed. To use it, you need to import the `"github.com/shengyanli1982/events/contrib/lazy"` package.
+
+> [!TIP]
+>
+> The `NewSimpleEventEmitter` method also supports creating objects that can operate in `Default` and `RunOnce` modes.
+
+**Example**
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/shengyanli1982/events/contrib/lazy"
+)
+
+// testTopic 是一个全局变量，表示测试用的主题。
+// testTopic is a global variable that represents the topic for testing.
+var testTopic = "topic"
+
+// testMessage 是一个全局变量，表示测试用的消息。
+// testMessage is a global variable that represents the message for testing.
+var testMessage = "message"
+
+// testMaxRounds 是一个全局变量，表示测试的最大轮数。
+// testMaxRounds is a global variable that represents the maximum number of rounds for testing.
+var testMaxRounds = 10
+
+// handler 是一个结构体，用于处理消息。
+// handler is a struct for handling messages.
+type handler struct{}
+
+// testTopicMsgHandleFunc 是 handler 的一个方法，它接受一个消息，打印这个消息，然后返回这个消息和 nil 错误。
+// testTopicMsgHandleFunc is a method of handler that takes a message, prints this message, and then returns this message and a nil error.
+func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
+	// 打印消息。
+	// Print the message.
+	fmt.Println(">>>>", msg)
+
+	// 返回消息和 nil 错误。
+	// Return the message and a nil error.
+	return msg, nil
+}
+
+func main() {
+	// 创建一个新的事件发射器。
+	// Create a new event emitter.
+	ee := lazy.NewSimpleEventEmitter()
+
+	// 创建一个新的处理器。
+	// Create a new handler.
+	handler := &handler{}
+
+	// 在指定的主题上注册处理器的 testTopicMsgHandleFunc 方法。
+	// Register the testTopicMsgHandleFunc method of the handler on the specified topic.
+	ee.RegisterWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+
+	// 循环 testMaxRounds 次，每次在指定的主题上发出一个带有序号的消息。
+	// Loop testMaxRounds times, each time emitting a numbered message on the specified topic.
+	for i := 0; i < testMaxRounds; i++ {
+		_ = ee.EmitWithTopic(testTopic, testMessage+fmt.Sprint(i))
+	}
+
+	// 等待一秒钟，以便所有的消息都能被处理。
+	// Wait for one second so that all messages can be processed.
+	time.Sleep(time.Second)
+
+	// 停止事件发射器。
+	// Stop the event emitter.
+	ee.Stop()
+}
+```
+
+**Result**
+
+```bash
+$ go run demo.go
+>>>> message0
+>>>> message1
+>>>> message2
+>>>> message3
+>>>> message4
+>>>> message5
+>>>> message6
+>>>> message7
+>>>> message8
+>>>> message9
 ```

@@ -4,4 +4,6 @@ use (
 	./test
 	./examples/default
 	./examples/runonce
+	./examples/lazy
+	./contrib/lazy
 )
