@@ -188,9 +188,9 @@ func main() {
 **Result**
 
 ```bash
-$ go run demo.go
+$ go run demo.go 
 >>>> message0
->>>> message2
+>>>> message1
 >>>> message3
 >>>> message4
 >>>> message5
@@ -198,7 +198,7 @@ $ go run demo.go
 >>>> message7
 >>>> message8
 >>>> message9
->>>> message1
+>>>> message2
 ```
 
 ### 2. RunOnce Mode
@@ -297,7 +297,7 @@ $ go run demo.go
 
 ## Dark Magic
 
-The `NewSimpleEventEmitter` method is a lesser-known feature of the events project, located in the `/contrib/lazy` directory. This method allows for the creation of an `EventEmitter` object with various pre-configured defaults. The behavior of the `EventEmitter` created using this method is identical to one created with the `NewEventEmitter` method.
+The `NewSimpleEventEmitter` method is a lesser-known feature of the events project, located in the `/contrib/lazy` directory. The behavior of the `EventEmitter` created using this method is identical to one created with the `NewEventEmitter` method.
 
 While the `NewSimpleEventEmitter` method may not offer as much flexibility as the `NewEventEmitter` method, it is an excellent option for those who prefer simplicity over customization.
 
@@ -352,7 +352,7 @@ func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
 func main() {
 	// 创建一个新的事件发射器。
 	// Create a new event emitter.
-	ee := lazy.NewSimpleEventEmitter()
+	ee := lazy.NewSimpleEventEmitter(3, nil, nil)
 
 	// 创建一个新的处理器。
 	// Create a new handler.
@@ -381,15 +381,15 @@ func main() {
 **Result**
 
 ```bash
-$ go run demo.go
->>>> message0
+$ go run demo.go 
 >>>> message1
+>>>> message0
 >>>> message2
->>>> message3
 >>>> message4
->>>> message5
 >>>> message6
 >>>> message7
 >>>> message8
 >>>> message9
+>>>> message3
+>>>> message5
 ```

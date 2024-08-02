@@ -8,10 +8,10 @@ import (
 
 // NewSimpleEventEmitter 是一个函数，用于创建一个新的简单事件发射器。
 // NewSimpleEventEmitter is a function for creating a new simple event emitter.
-func NewSimpleEventEmitter() *ev.EventEmitter {
+func NewSimpleEventEmitter(count int, handleFunc k.MessageHandleFunc, cb k.Callback) *ev.EventEmitter {
 	// 创建一个新的配置对象。
 	// Create a new configuration object.
-	conf := k.NewConfig()
+	conf := k.NewConfig().WithWorkerNumber(count).WithHandleFunc(handleFunc).WithCallback(cb)
 
 	// 创建一个新的延迟队列，参数为 nil。
 	// Create a new delaying queue with nil as the parameter.
