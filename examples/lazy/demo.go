@@ -38,7 +38,7 @@ func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
 func main() {
 	// 创建一个新的事件发射器。
 	// Create a new event emitter.
-	ee := lazy.NewSimpleEventEmitter()
+	ee := lazy.NewSimpleEventEmitter(3, nil, nil)
 
 	// 创建一个新的处理器。
 	// Create a new handler.
