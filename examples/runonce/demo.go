@@ -1,3 +1,8 @@
+// 本示例演示 once 语义特性：
+// - RegisterOnce / RegisterOnceWithTopic：handler 只执行一次
+// - 多次 emit，handler 仅首次执行
+// - ResetOnce / ResetOnceWithTopic：重置 once 后再次 emit 可再次执行
+// - 普通 Register 与 RegisterOnce 的行为差异
 package main
 
 import (
@@ -5,74 +10,80 @@ import (
 	"time"
 
 	"github.com/shengyanli1982/events"
-	k "github.com/shengyanli1982/karta"
-	wkq "github.com/shengyanli1982/workqueue/v2"
+	karta "github.com/shengyanli1982/events/contrib/karta"
 )
 
-// testTopic 是一个全局变量，表示测试用的主题。
-// testTopic is a global variable that represents the topic for testing.
-var testTopic = "topic"
+// onceHandler 处理需要只执行一次的事件
+func onceHandler(msg any) (any, error) {
+	fmt.Printf("[Once] 执行: %v\n", msg)
+	return msg, nil
+}
 
-// testMessage 是一个全局变量，表示测试用的消息。
-// testMessage is a global variable that represents the message for testing.
-var testMessage = "message"
-
-// testMaxRounds 是一个全局变量，表示测试的最大轮数。
-// testMaxRounds is a global variable that represents the maximum number of rounds for testing.
-var testMaxRounds = 10
-
-// handler 是一个结构体，用于处理消息。
-// handler is a struct for handling messages.
-type handler struct{}
-
-// testTopicMsgHandleFunc 是 handler 的一个方法，它接受一个消息，打印这个消息，然后返回这个消息和 nil 错误。
-// testTopicMsgHandleFunc is a method of handler that takes a message, prints this message, and then returns this message and a nil error.
-func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
-	// 打印消息。
-	// Print the message.
-	fmt.Println(">>>>", msg)
-
-	// 返回消息和 nil 错误。
-	// Return the message and a nil error.
+// normalHandler 处理普通事件（每次都会执行）
+func normalHandler(msg any) (any, error) {
+	fmt.Printf("[Normal] 执行: %v\n", msg)
 	return msg, nil
 }
 
 func main() {
-	// 创建一个新的配置。
-	// Create a new configuration.
-	c := k.NewConfig()
+	// 两阶段初始化
+	adapter := karta.NewKartaAdapter(nil, karta.NewSimpleScheduler(256))
+	ee := events.NewEventEmitter(adapter)
+	adapter.SetEventEmitter(ee)
 
-	// 创建一个新的假延迟队列。
-	// Create a new fake delaying queue.
-	queue := k.NewFakeDelayingQueue(wkq.NewQueue(nil))
+	// 1. 注册 once handler 和普通 handler
+	ee.RegisterOnceWithTopic("notify", onceHandler)
+	ee.RegisterWithTopic("log", normalHandler)
 
-	// 创建一个新的管道。
-	// Create a new pipeline.
-	pl := k.NewPipeline(queue, c)
-
-	// 创建一个新的事件发射器。
-	// Create a new event emitter.
-	ee := events.NewEventEmitter(pl)
-
-	// 创建一个新的处理器。
-	// Create a new handler.
-	handler := &handler{}
-
-	// 在指定的主题上注册处理器的 testTopicMsgHandleFunc 方法，该方法只会被执行一次。
-	// Register the testTopicMsgHandleFunc method of the handler on the specified topic. This method will be executed only once.
-	ee.RegisterOnceWithTopic(testTopic, handler.testTopicMsgHandleFunc)
-
-	// 循环 testMaxRounds 次，每次在指定的主题上发出一个带有序号的消息。
-	// Loop testMaxRounds times, each time emitting a numbered message on the specified topic.
-	for i := 0; i < testMaxRounds; i++ {
-		_ = ee.EmitWithTopic(testTopic, testMessage+fmt.Sprint(i))
+	// 2. 连续发射 3 次，但 once handler 只执行一次
+	fmt.Println("=== 首次发射 3 次 ===")
+	for i := range 3 {
+		_ = ee.EmitWithTopic("notify", fmt.Sprintf("通知#%d", i+1))
+		_ = ee.EmitWithTopic("log", fmt.Sprintf("日志#%d", i+1))
 	}
 
-	// 等待一秒钟，以便所有的消息都能被处理。
-	// Wait for one second so that all messages can be processed.
-	time.Sleep(time.Second)
+	time.Sleep(500 * time.Millisecond)
 
-	// 停止事件发射器。
-	// Stop the event emitter.
+	// 3. ResetOnceWithTopic 重置后再次发射，once handler 会再次执行
+	fmt.Println("=== 重置 once 后再次发射 ===")
+	if err := ee.ResetOnceWithTopic("notify"); err != nil {
+		fmt.Printf("ResetOnce 错误: %v\n", err)
+	}
+	_ = ee.EmitWithTopic("notify", "通知#4(重置后)")
+
+	time.Sleep(300 * time.Millisecond)
+
+	// 4. 再次发射，once handler 仍然只执行一次
+	fmt.Println("=== 重置后第二次发射（不再执行） ===")
+	_ = ee.EmitWithTopic("notify", "通知#5")
+
+	time.Sleep(300 * time.Millisecond)
+
+	// 5. 对非 once topic 调用 ResetOnce 会返回错误
+	fmt.Println("=== 尝试重置非 once topic ===")
+	if err := ee.ResetOnceWithTopic("log"); err != nil {
+		fmt.Printf("ResetOnce 错误: %v\n", err)
+	}
+
+	// 6. 演示默认 topic 的 once 语义
+	ee.RegisterOnce(defaultOnceHandler)
+	fmt.Println("=== 默认 topic once 语义 ===")
+	_ = ee.Emit("默认事件#1")
+	_ = ee.Emit("默认事件#2")
+
+	time.Sleep(300 * time.Millisecond)
+
+	// 重置默认 topic，再发射一次
+	_ = ee.ResetOnce()
+	_ = ee.Emit("默认事件#3(重置后)")
+
+	time.Sleep(300 * time.Millisecond)
+
 	ee.Stop()
+}
+
+// defaultOnceHandler 默认 topic 的 once handler
+func defaultOnceHandler(msg any) (any, error) {
+	fmt.Printf("[DefaultOnce] 执行: %v\n", msg)
+	return msg, nil
 }

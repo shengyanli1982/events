@@ -1,3 +1,9 @@
+// 本示例演示 events 库的完整使用流程：
+// - 两阶段初始化（KartaAdapter + EventEmitter）
+// - 多 topic 注册与发射
+// - 延迟发射
+// - 查询 API（HasTopic, Topics）
+// - 错误处理与优雅停止
 package main
 
 import (
@@ -5,74 +11,60 @@ import (
 	"time"
 
 	"github.com/shengyanli1982/events"
-	k "github.com/shengyanli1982/karta"
-	wkq "github.com/shengyanli1982/workqueue/v2"
+	karta "github.com/shengyanli1982/events/contrib/karta"
 )
 
-// testTopic 是一个全局变量，表示测试用的主题。
-// testTopic is a global variable that represents the topic for testing.
-var testTopic = "topic"
+// orderHandler 处理订单相关事件
+func orderHandler(msg any) (any, error) {
+	fmt.Printf("[Order] 收到订单: %v\n", msg)
+	return msg, nil
+}
 
-// testMessage 是一个全局变量，表示测试用的消息。
-// testMessage is a global variable that represents the message for testing.
-var testMessage = "message"
-
-// testMaxRounds 是一个全局变量，表示测试的最大轮数。
-// testMaxRounds is a global variable that represents the maximum number of rounds for testing.
-var testMaxRounds = 10
-
-// handler 是一个结构体，用于处理消息。
-// handler is a struct for handling messages.
-type handler struct{}
-
-// testTopicMsgHandleFunc 是 handler 的一个方法，它接受一个消息，打印这个消息，然后返回这个消息和 nil 错误。
-// testTopicMsgHandleFunc is a method of handler that takes a message, prints this message, and then returns this message and a nil error.
-func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
-	// 打印消息。
-	// Print the message.
-	fmt.Println(">>>>", msg)
-
-	// 返回消息和 nil 错误。
-	// Return the message and a nil error.
+// paymentHandler 处理支付相关事件
+func paymentHandler(msg any) (any, error) {
+	fmt.Printf("[Payment] 收到支付: %v\n", msg)
 	return msg, nil
 }
 
 func main() {
-	// 创建一个新的配置。
-	// Create a new configuration.
-	c := k.NewConfig()
+	// 1. 两阶段初始化：先创建 Adapter（ee=nil），再创建 EventEmitter，最后注入
+	adapter := karta.NewKartaAdapter(nil, karta.NewSimpleScheduler(256))
+	ee := events.NewEventEmitter(adapter)
+	adapter.SetEventEmitter(ee)
 
-	// 创建一个新的假延迟队列。
-	// Create a new fake delaying queue.
-	queue := k.NewFakeDelayingQueue(wkq.NewQueue(nil))
+	// 2. 注册多个 topic
+	ee.RegisterWithTopic("order", orderHandler)
+	ee.RegisterWithTopic("payment", paymentHandler)
 
-	// 创建一个新的管道。
-	// Create a new pipeline.
-	pl := k.NewPipeline(queue, c)
+	// 3. 查询已注册的 topic
+	fmt.Printf("已注册 topics: %v\n", ee.Topics())
+	fmt.Printf("HasTopic(\"order\"): %v\n", ee.HasTopic("order"))
+	fmt.Printf("HasTopic(\"unknown\"): %v\n", ee.HasTopic("unknown"))
 
-	// 创建一个新的事件发射器。
-	// Create a new event emitter.
-	ee := events.NewEventEmitter(pl)
+	// 4. 普通发射
+	_ = ee.EmitWithTopic("order", "订单#001")
+	_ = ee.EmitWithTopic("payment", "支付#001")
 
-	// 创建一个新的处理器。
-	// Create a new handler.
-	handler := &handler{}
+	// 5. 延迟发射（500ms 后执行）
+	_ = ee.EmitAfterWithTopic("order", "订单#002(延迟)", 500*time.Millisecond)
 
-	// 在指定的主题上注册处理器的 testTopicMsgHandleFunc 方法。
-	// Register the testTopicMsgHandleFunc method of the handler on the specified topic.
-	ee.RegisterWithTopic(testTopic, handler.testTopicMsgHandleFunc)
-
-	// 循环 testMaxRounds 次，每次在指定的主题上发出一个带有序号的消息。
-	// Loop testMaxRounds times, each time emitting a numbered message on the specified topic.
-	for i := 0; i < testMaxRounds; i++ {
-		_ = ee.EmitWithTopic(testTopic, testMessage+fmt.Sprint(i))
+	// 6. 错误处理：发射到不存在的 topic
+	if err := ee.EmitWithTopic("unknown", "测试"); err != nil {
+		fmt.Printf("Emit 错误: %v\n", err)
 	}
 
-	// 等待一秒钟，以便所有的消息都能被处理。
-	// Wait for one second so that all messages can be processed.
-	time.Sleep(time.Second)
+	// 等待异步事件处理完成
+	time.Sleep(800 * time.Millisecond)
 
-	// 停止事件发射器。
-	// Stop the event emitter.
+	// 7. 优雅停止
 	ee.Stop()
+	fmt.Printf("Emitter 已停止: %v\n", ee.IsStopped())
+
+	// 停止后再发射会被拒绝
+	if err := ee.EmitWithTopic("order", "订单#003"); err != nil {
+		fmt.Printf("停止后 Emit 错误: %v\n", err)
+	}
+
+	// 等待延迟事件处理完成
+	time.Sleep(100 * time.Millisecond)
 }
