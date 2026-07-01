@@ -1,10 +1,8 @@
-module github.com/shengyanli1982/events/contrib/lazy
+module github.com/shengyanli1982/events/examples/concurrent
 
 go 1.23
 
 replace github.com/shengyanli1982/events => ../../
-
-replace github.com/shengyanli1982/events/contrib/karta => ../karta
 
 require (
 	github.com/shengyanli1982/events v0.0.0-00010101000000-000000000000

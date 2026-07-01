@@ -1,9 +1,13 @@
-go 1.19
+go 1.23
 
 use (
-	./test
-	./examples/default
-	./examples/runonce
-	./examples/lazy
+	./
+	./contrib/karta
 	./contrib/lazy
+	./examples/callback
+	./examples/concurrent
+	./examples/default
+	./examples/lazy
+	./examples/runonce
+	./test
 )

@@ -1,64 +1,65 @@
+// 本示例演示懒创建方式（lazy.NewSimpleEventEmitter）：
+// - 一行代码完成 Adapter + EventEmitter 的初始化和绑定
+// - 传入默认 handler，自动注册到 "default" topic
+// - 额外注册其他 topic，多 topic 共存
 package main
 
 import (
 	"fmt"
 	"time"
 
+	"github.com/shengyanli1982/events"
 	"github.com/shengyanli1982/events/contrib/lazy"
 )
 
-// testTopic 是一个全局变量，表示测试用的主题。
-// testTopic is a global variable that represents the topic for testing.
-var testTopic = "topic"
+// defaultHandler 作为默认 topic 的 handler（构造时传入）
+func defaultHandler(msg any) (any, error) {
+	fmt.Printf("[Default] %v\n", msg)
+	return msg, nil
+}
 
-// testMessage 是一个全局变量，表示测试用的消息。
-// testMessage is a global variable that represents the message for testing.
-var testMessage = "message"
-
-// testMaxRounds 是一个全局变量，表示测试的最大轮数。
-// testMaxRounds is a global variable that represents the maximum number of rounds for testing.
-var testMaxRounds = 10
-
-// handler 是一个结构体，用于处理消息。
-// handler is a struct for handling messages.
-type handler struct{}
-
-// testTopicMsgHandleFunc 是 handler 的一个方法，它接受一个消息，打印这个消息，然后返回这个消息和 nil 错误。
-// testTopicMsgHandleFunc is a method of handler that takes a message, prints this message, and then returns this message and a nil error.
-func (h *handler) testTopicMsgHandleFunc(msg any) (any, error) {
-	// 打印消息。
-	// Print the message.
-	fmt.Println(">>>>", msg)
-
-	// 返回消息和 nil 错误。
-	// Return the message and a nil error.
+// notifyHandler 额外注册的 topic handler
+func notifyHandler(msg any) (any, error) {
+	fmt.Printf("[Notify] %v\n", msg)
 	return msg, nil
 }
 
 func main() {
-	// 创建一个新的事件发射器。
-	// Create a new event emitter.
-	ee := lazy.NewSimpleEventEmitter(3, nil, nil)
+	// 1. 一行创建：内部完成 Adapter + EventEmitter 两阶段初始化，并注册默认 handler
+	// 参数：worker 数量、默认 handler、callback（nil 表示不需要）
+	ee := lazy.NewSimpleEventEmitter(3, events.MessageHandleFunc(defaultHandler), nil)
 
-	// 创建一个新的处理器。
-	// Create a new handler.
-	handler := &handler{}
+	// 2. 额外注册一个 topic
+	ee.RegisterWithTopic("notify", events.MessageHandleFunc(notifyHandler))
 
-	// 在指定的主题上注册处理器的 testTopicMsgHandleFunc 方法。
-	// Register the testTopicMsgHandleFunc method of the handler on the specified topic.
-	ee.RegisterWithTopic(testTopic, handler.testTopicMsgHandleFunc)
+	// 3. 展示已注册的 topics
+	fmt.Printf("已注册 topics: %v\n", ee.Topics())
 
-	// 循环 testMaxRounds 次，每次在指定的主题上发出一个带有序号的消息。
-	// Loop testMaxRounds times, each time emitting a numbered message on the specified topic.
-	for i := 0; i < testMaxRounds; i++ {
-		_ = ee.EmitWithTopic(testTopic, testMessage+fmt.Sprint(i))
-	}
+	// 4. 通过默认 topic 发射（使用 Emit）
+	_ = ee.Emit("默认消息#1")
+	_ = ee.Emit("默认消息#2")
 
-	// 等待一秒钟，以便所有的消息都能被处理。
-	// Wait for one second so that all messages can be processed.
-	time.Sleep(time.Second)
+	// 5. 通过其他 topic 发射（使用 EmitWithTopic）
+	_ = ee.EmitWithTopic("notify", "通知消息#1")
+	_ = ee.EmitWithTopic("notify", "通知消息#2")
 
-	// 停止事件发射器。
-	// Stop the event emitter.
+	// 等待异步处理完成
+	time.Sleep(500 * time.Millisecond)
+
+	// 6. 演示传入 nil handler（纯无 handler 模式）
+	ee2 := lazy.NewSimpleEventEmitter(2, nil, nil)
+	ee2.RegisterWithTopic("task", taskHandler)
+	_ = ee2.EmitWithTopic("task", "任务消息")
+
+	time.Sleep(300 * time.Millisecond)
+
 	ee.Stop()
+	ee2.Stop()
+	fmt.Println("所有 emitter 已停止")
+}
+
+// taskHandler 独立任务处理器
+func taskHandler(msg any) (any, error) {
+	fmt.Printf("[Task] %v\n", msg)
+	return msg, nil
 }

@@ -2,26 +2,28 @@ package lazy
 
 import (
 	ev "github.com/shengyanli1982/events"
-	k "github.com/shengyanli1982/karta"
-	wkq "github.com/shengyanli1982/workqueue/v2"
+	karta "github.com/shengyanli1982/events/contrib/karta"
 )
 
-// NewSimpleEventEmitter 是一个函数，用于创建一个新的简单事件发射器。
-// NewSimpleEventEmitter is a function for creating a new simple event emitter.
-func NewSimpleEventEmitter(count int, handleFunc k.MessageHandleFunc, cb k.Callback) *ev.EventEmitter {
-	// 创建一个新的配置对象。
-	// Create a new configuration object.
-	conf := k.NewConfig().WithWorkerNumber(count).WithHandleFunc(handleFunc).WithCallback(cb)
+// NewSimpleEventEmitter 基于 KartaAdapter 创建 EventEmitter，内部采用两阶段初始化
+// （先建 adapter 再注入 ee）以解决 EventEmitter 与 Pipeline 的循环依赖。
+func NewSimpleEventEmitter(count int, handleFunc ev.MessageHandleFunc, cb karta.Callback) *ev.EventEmitter {
+	var opts []karta.KartaOption
+	if count > 0 {
+		opts = append(opts, karta.WithWorkers(count))
+	}
+	if cb != nil {
+		opts = append(opts, karta.WithCallback(cb))
+	}
 
-	// 创建一个新的延迟队列，参数为 nil。
-	// Create a new delaying queue with nil as the parameter.
-	queue := wkq.NewDelayingQueue(nil)
+	// 两阶段初始化：先创建 adapter（ee=nil），再创建 emitter，最后注入 ee
+	adapter := karta.NewKartaAdapter(nil, karta.NewSimpleScheduler(256), opts...)
+	ee := ev.NewEventEmitter(adapter)
+	adapter.SetEventEmitter(ee)
 
-	// 使用队列和配置创建一个新的管道。
-	// Create a new pipeline using the queue and configuration.
-	pl := k.NewPipeline(queue, conf)
+	if handleFunc != nil {
+		ee.Register(handleFunc)
+	}
 
-	// 使用管道创建一个新的事件发射器，并返回。
-	// Create a new event emitter using the pipeline and return it.
-	return ev.NewEventEmitter(pl)
+	return ee
 }
