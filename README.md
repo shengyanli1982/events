@@ -217,6 +217,8 @@ func main() {
 
 `EventEmitter` is safe for concurrent use. Handler registration uses `sync.RWMutex` and the stop flag uses `atomic.Bool`. Events are pooled via `sync.Pool` to minimize GC pressure under load.
 
+**Concurrent backpressure:** When the underlying pipeline's scheduler buffer is full (e.g. `SimpleScheduler` with a fixed buffer size), `EmitWithTopic` and `Emit` may return an error (such as `karta.ErrSchedulerFull`). In high-throughput scenarios, callers should implement retry logic with a short backoff to handle transient buffer saturation gracefully.
+
 ## Examples
 
 See the [`./examples`](./examples) directory for runnable demos:

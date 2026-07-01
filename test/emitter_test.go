@@ -1,6 +1,7 @@
 package test
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/shengyanli1982/events"
 	karta "github.com/shengyanli1982/events/contrib/karta"
+	kt2 "github.com/shengyanli1982/karta/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -691,7 +693,18 @@ func TestEventEmitter_ConcurrentEmit(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range numEmitsPerGoroutine {
-				_ = ee.EmitWithTopic(testTopic, testMessage)
+				for {
+					err := ee.EmitWithTopic(testTopic, testMessage)
+					if err == nil {
+						break
+					}
+					if errors.Is(err, kt2.ErrSchedulerFull) {
+						time.Sleep(5 * time.Millisecond)
+						continue
+					}
+					t.Errorf("unexpected error: %v", err)
+					break
+				}
 			}
 		}()
 	}
