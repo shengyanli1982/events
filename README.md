@@ -198,7 +198,7 @@ func main() {
 | ------------------- | ----------------------------------------------------------------------------- |
 | `Event`             | Event object carrying a topic and data payload                                |
 | `NewEvent() *Event` | Create a zero-valued `Event`                                                  |
-| `Pipeline`          | Async pipeline interface with `SubmitWithFunc`, `SubmitAfterWithFunc`, `Stop` |
+| `Pipeline`          | Async pipeline interface with `Submit`, `SubmitAfter`, `Stop`               |
 | `MessageHandleFunc` | Handler type alias: `func(msg any) (any, error)`                              |
 | `DefaultTopicName`  | Constant `"default"`, the implicit topic for `Register`/`Emit` helpers        |
 

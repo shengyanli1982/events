@@ -288,7 +288,7 @@ func (ee *EventEmitter) ResetOnce() error {
 }
 
 // emit 是 emit 系列方法的内部实现，根据 delay 决定立即提交还是延迟提交。
-// stopped 检查与 wrapFn 到 Submit 的过程均在读锁保护下完成，防止 Stop/Emit 与 Unregister 的 TOCTOU 竞态。
+// stopped 检查与 event 提交的过程均在读锁保护下完成，防止 Stop/Emit 与 Unregister 的 TOCTOU 竞态。
 func (ee *EventEmitter) emit(topic string, msg any, delay time.Duration) error {
 	ee.lock.RLock()
 	defer ee.lock.RUnlock()
@@ -302,18 +302,6 @@ func (ee *EventEmitter) emit(topic string, msg any, delay time.Duration) error {
 		return ErrTopicNotExists
 	}
 
-	fnsCopy := make([]*handleFuncs, len(fnsList))
-	copy(fnsCopy, fnsList)
-
-	wrapFn := func(msg any) (any, error) {
-		var result any
-		var err error
-		for _, fns := range fnsCopy {
-			result, err = fns.GetWrapMsgHandleFunc()(msg)
-		}
-		return result, err
-	}
-
 	event := ee.eventPool.Get()
 	event.SetTopic(topic)
 	event.SetData(msg)
@@ -322,9 +310,9 @@ func (ee *EventEmitter) emit(topic string, msg any, delay time.Duration) error {
 
 	var submitErr error
 	if delay > 0 {
-		submitErr = ee.pipeline.SubmitAfterWithFunc(wrapFn, event, delay)
+		submitErr = ee.pipeline.SubmitAfter(event, delay)
 	} else {
-		submitErr = ee.pipeline.SubmitWithFunc(wrapFn, event)
+		submitErr = ee.pipeline.Submit(event)
 	}
 
 	if submitErr != nil {

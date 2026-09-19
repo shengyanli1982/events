@@ -66,7 +66,7 @@ func emitDefaultWithRetry(ee *events.EventEmitter, msg any) error {
 }
 
 // BenchmarkEmit measures single-goroutine emit throughput on the default topic.
-// Tests the full emit path: RLock + pool.Get + pipeline.SubmitWithFunc.
+// Tests the full emit path: RLock + pool.Get + pipeline.Submit.
 func BenchmarkEmit(b *testing.B) {
 	ee, _ := setupBenchEmitter(nil, 0)
 	defer ee.Stop()
