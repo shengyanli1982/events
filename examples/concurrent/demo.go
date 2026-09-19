@@ -2,14 +2,13 @@
 // - 多个 goroutine 并发注册不同 topic
 // - 多个 goroutine 并发调用 EmitWithTopic
 // - 使用原子计数器验证所有事件都被处理
-// - 使用 time.After 控制超时退出
+// - 使用 Wait() 阻塞等待所有事件处理完成
 package main
 
 import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/shengyanli1982/events"
 	karta "github.com/shengyanli1982/events/contrib/karta"
@@ -57,27 +56,11 @@ func main() {
 	emitWg.Wait()
 	fmt.Printf("所有 %d 条事件已发射\n", len(topics)*msgsPerTopic)
 
-	// 5. 等待异步处理完成，使用 time.After 设置超时
-	select {
-	case <-time.After(3 * time.Second):
-		fmt.Println("超时退出")
-	case <-waitForProcessed(&processed, int64(len(topics)*msgsPerTopic)):
-		fmt.Printf("全部事件已处理完成, 总计: %d\n", processed.Load())
-	}
+	// 5. 等待异步处理完成
+	ee.Wait()
+	fmt.Printf("全部事件已处理完成, 总计: %d\n", processed.Load())
 
 	// 6. 优雅停止
 	ee.Stop()
 	fmt.Println("Emitter 已停止")
-}
-
-// waitForProcessed 轮询等待计数器达到期望值，返回一个 channel
-func waitForProcessed(counter *atomic.Int64, expected int64) <-chan struct{} {
-	ch := make(chan struct{})
-	go func() {
-		for counter.Load() < expected {
-			time.Sleep(10 * time.Millisecond)
-		}
-		close(ch)
-	}()
-	return ch
 }

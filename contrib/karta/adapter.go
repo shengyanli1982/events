@@ -37,12 +37,18 @@ func (ca *callbackAdapter) OnAfter(_ context.Context, input, output any, err err
 		defer func() {
 			if r := recover(); r != nil {
 				ca.adapter.recycleEvent(input)
+				if ca.adapter.ee != nil {
+					ca.adapter.ee.EventDone()
+				}
 				panic(r)
 			}
 		}()
 		ca.cb.OnAfter(input, output, err)
 	}
 	ca.adapter.recycleEvent(input)
+	if ca.adapter.ee != nil {
+		ca.adapter.ee.EventDone()
+	}
 }
 
 func (a *KartaAdapter) recycleEvent(input any) {
