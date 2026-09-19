@@ -309,17 +309,18 @@ func (ee *EventEmitter) DispatchEvent(event *Event) (any, error) {
 	}
 
 	ee.lock.RLock()
-	defer ee.lock.RUnlock()
-
 	if ee.stopped.Load() {
+		ee.lock.RUnlock()
 		return nil, ErrEmitterStopped
 	}
 
 	fns, ok := ee.registerFuncs[event.GetTopic()]
 	if !ok {
+		ee.lock.RUnlock()
 		return nil, ErrTopicNotExists
 	}
 	wrapFn := fns.GetWrapMsgHandleFunc()
+	ee.lock.RUnlock()
 
 	return wrapFn(event)
 }

@@ -118,18 +118,15 @@ func (a *KartaAdapter) SetEventEmitter(ee *events.EventEmitter) {
 	a.ee = ee
 }
 
-// SubmitWithFunc 使用指定的处理函数立即提交任务（走 karta SubmitWithHandler per-task override）。
+// SubmitWithFunc 使用指定的处理函数立即提交任务。
+// fn 参数保留用于接口兼容性，事件通过 DispatchEvent 按 topic 路由到已注册 handler。
 func (a *KartaAdapter) SubmitWithFunc(fn events.MessageHandleFunc, msg any) error {
-	handler := karta.Handler[any, any](func(_ context.Context, input any) (any, error) {
-		return fn(input)
-	})
-	_, err := a.pipeline.SubmitWithHandler(context.Background(), handler, msg)
+	_, err := a.pipeline.Submit(context.Background(), msg)
 	return err
 }
 
 // SubmitAfterWithFunc 在指定延迟后提交任务。
-// 由于 karta v2 不支持延迟提交时指定 per-handler，fn 参数在此被忽略；
-// 事件通过 DispatchEvent 按 topic 路由到对应的已注册 handler。这是 karta v2 API 的已知限制。
+// fn 参数保留用于接口兼容性，事件通过 DispatchEvent 按 topic 路由到已注册 handler。
 func (a *KartaAdapter) SubmitAfterWithFunc(fn events.MessageHandleFunc, msg any, delay time.Duration) error {
 	_, err := a.pipeline.SubmitAfter(context.Background(), msg, delay)
 	return err
