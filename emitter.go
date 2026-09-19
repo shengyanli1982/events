@@ -38,8 +38,9 @@ type EventEmitter struct {
 	once          sync.Once
 	eventPool     *eventPool
 	lock          sync.RWMutex
-	registerFuncs map[string]*handleFuncs
+	registerFuncs map[string][]*handleFuncs
 	stopped       atomic.Bool
+	waitGroup     sync.WaitGroup
 }
 
 // NewEventEmitter 创建一个 EventEmitter 实例，pl 为 nil 时返回 nil。
@@ -53,7 +54,7 @@ func NewEventEmitter(pl Pipeline) *EventEmitter {
 		once:          sync.Once{},
 		eventPool:     newEventPool(),
 		lock:          sync.RWMutex{},
-		registerFuncs: make(map[string]*handleFuncs),
+		registerFuncs: make(map[string][]*handleFuncs),
 	}
 
 	return &ee
@@ -73,6 +74,16 @@ func (ee *EventEmitter) Stop() {
 // IsStopped 返回 EventEmitter 是否已停止。
 func (ee *EventEmitter) IsStopped() bool {
 	return ee.stopped.Load()
+}
+
+// Wait 阻塞等待所有 in-flight 事件处理完成。
+func (ee *EventEmitter) Wait() {
+	ee.waitGroup.Wait()
+}
+
+// EventDone 标记一个 in-flight 事件已完成处理，供 Pipeline 适配器调用。
+func (ee *EventEmitter) EventDone() {
+	ee.waitGroup.Done()
 }
 
 // RegisterWithTopic 向指定主题注册消息处理函数。
@@ -101,7 +112,7 @@ func (ee *EventEmitter) RegisterWithTopic(topic string, fn MessageHandleFunc) {
 	})
 
 	fns.SetOnce(false)
-	ee.registerFuncs[topic] = fns
+	ee.registerFuncs[topic] = []*handleFuncs{fns}
 }
 
 // Register 向默认主题注册消息处理函数，等价于 RegisterWithTopic(DefaultTopicName, fn)。
@@ -159,12 +170,69 @@ func (ee *EventEmitter) RegisterOnceWithTopic(topic string, fn MessageHandleFunc
 	})
 
 	fns.SetOnce(true)
-	ee.registerFuncs[topic] = fns
+	ee.registerFuncs[topic] = []*handleFuncs{fns}
 }
 
 // RegisterOnce 向默认主题注册一次性处理函数，等价于 RegisterOnceWithTopic(DefaultTopicName, fn)。
 func (ee *EventEmitter) RegisterOnce(fn MessageHandleFunc) {
 	ee.RegisterOnceWithTopic(DefaultTopicName, fn)
+}
+
+func (ee *EventEmitter) AppendWithTopic(topic string, fn MessageHandleFunc) {
+	if fn == nil {
+		return
+	}
+	ee.lock.Lock()
+	defer ee.lock.Unlock()
+	if ee.stopped.Load() {
+		return
+	}
+	fns := newHandleFuncs()
+	fns.SetOrigMsgHandleFunc(fn)
+	fns.SetWrapMsgHandleFunc(func(msg any) (any, error) {
+		e, ok := msg.(*Event)
+		if !ok {
+			return nil, ErrInvalidMessage
+		}
+		return fn(e.GetData())
+	})
+	fns.SetOnce(false)
+	ee.registerFuncs[topic] = append(ee.registerFuncs[topic], fns)
+}
+
+func (ee *EventEmitter) Append(fn MessageHandleFunc) {
+	ee.AppendWithTopic(DefaultTopicName, fn)
+}
+
+func (ee *EventEmitter) AppendOnceWithTopic(topic string, fn MessageHandleFunc) {
+	if fn == nil {
+		return
+	}
+	ee.lock.Lock()
+	defer ee.lock.Unlock()
+	if ee.stopped.Load() {
+		return
+	}
+	once := &sync.Once{}
+	fns := newHandleFuncs()
+	fns.SetOrigMsgHandleFunc(fn)
+	fns.SetWrapMsgHandleFunc(func(msg any) (data any, err error) {
+		e, ok := msg.(*Event)
+		if !ok {
+			return nil, ErrInvalidMessage
+		}
+		err = ErrTopicExecutedOnce
+		once.Do(func() {
+			data, err = fn(e.GetData())
+		})
+		return data, err
+	})
+	fns.SetOnce(true)
+	ee.registerFuncs[topic] = append(ee.registerFuncs[topic], fns)
+}
+
+func (ee *EventEmitter) AppendOnce(fn MessageHandleFunc) {
+	ee.AppendOnceWithTopic(DefaultTopicName, fn)
 }
 
 // ResetOnceWithTopic 重置 once 语义主题的处理器，允许再次触发。
@@ -173,39 +241,44 @@ func (ee *EventEmitter) ResetOnceWithTopic(topic string) error {
 	ee.lock.Lock()
 	defer ee.lock.Unlock()
 
-	fns, ok := ee.registerFuncs[topic]
-	if !ok {
+	fnsList, ok := ee.registerFuncs[topic]
+	if !ok || len(fnsList) == 0 {
 		return ErrTopicNotExists
 	}
 
-	if !fns.IsOnce() {
+	hasOnce := false
+	for _, fns := range fnsList {
+		if fns.IsOnce() {
+			hasOnce = true
+			break
+		}
+	}
+	if !hasOnce {
 		return ErrTopicNotOnce
 	}
 
-	origFn := fns.GetOrigMsgHandleFunc()
-	once := &sync.Once{}
-
-	newFns := newHandleFuncs()
-	newFns.SetOrigMsgHandleFunc(origFn)
-
-	newFns.SetWrapMsgHandleFunc(func(msg any) (data any, err error) {
-		e, ok := msg.(*Event)
-		if !ok {
-			return nil, ErrInvalidMessage
+	for i, fns := range fnsList {
+		if !fns.IsOnce() {
+			continue
 		}
-
-		err = ErrTopicExecutedOnce
-
-		once.Do(func() {
-			data, err = origFn(e.GetData())
+		origFn := fns.GetOrigMsgHandleFunc()
+		once := &sync.Once{}
+		newFns := newHandleFuncs()
+		newFns.SetOrigMsgHandleFunc(origFn)
+		newFns.SetWrapMsgHandleFunc(func(msg any) (data any, err error) {
+			e, ok := msg.(*Event)
+			if !ok {
+				return nil, ErrInvalidMessage
+			}
+			err = ErrTopicExecutedOnce
+			once.Do(func() {
+				data, err = origFn(e.GetData())
+			})
+			return data, err
 		})
-
-		return data, err
-	})
-
-	// reset 后仍保持 once 语义
-	newFns.SetOnce(true)
-	ee.registerFuncs[topic] = newFns
+		newFns.SetOnce(true)
+		fnsList[i] = newFns
+	}
 	return nil
 }
 
@@ -215,7 +288,7 @@ func (ee *EventEmitter) ResetOnce() error {
 }
 
 // emit 是 emit 系列方法的内部实现，根据 delay 决定立即提交还是延迟提交。
-// stopped 检查与 wrapFn 到 Submit 的过程均在读锁保护下完成，防止 Stop/Emit 与 Unregister 的 TOCTOU 竞态。
+// stopped 检查与 event 提交的过程均在读锁保护下完成，防止 Stop/Emit 与 Unregister 的 TOCTOU 竞态。
 func (ee *EventEmitter) emit(topic string, msg any, delay time.Duration) error {
 	ee.lock.RLock()
 	defer ee.lock.RUnlock()
@@ -224,26 +297,28 @@ func (ee *EventEmitter) emit(topic string, msg any, delay time.Duration) error {
 		return ErrEmitterStopped
 	}
 
-	fns, ok := ee.registerFuncs[topic]
-	if !ok {
+	fnsList, ok := ee.registerFuncs[topic]
+	if !ok || len(fnsList) == 0 {
 		return ErrTopicNotExists
 	}
-	wrapFn := fns.GetWrapMsgHandleFunc()
 
 	event := ee.eventPool.Get()
 	event.SetTopic(topic)
 	event.SetData(msg)
 
-	var err error
+	ee.waitGroup.Add(1)
+
+	var submitErr error
 	if delay > 0 {
-		err = ee.pipeline.SubmitAfterWithFunc(wrapFn, event, delay)
+		submitErr = ee.pipeline.SubmitAfter(event, delay)
 	} else {
-		err = ee.pipeline.SubmitWithFunc(wrapFn, event)
+		submitErr = ee.pipeline.Submit(event)
 	}
 
-	if err != nil {
+	if submitErr != nil {
+		ee.waitGroup.Done()
 		ee.eventPool.Put(event)
-		return err
+		return submitErr
 	}
 
 	return nil
@@ -273,8 +348,8 @@ func (ee *EventEmitter) EmitAfter(msg any, delay time.Duration) error {
 func (ee *EventEmitter) HasTopic(topic string) bool {
 	ee.lock.RLock()
 	defer ee.lock.RUnlock()
-	_, ok := ee.registerFuncs[topic]
-	return ok
+	fnsList, ok := ee.registerFuncs[topic]
+	return ok && len(fnsList) > 0
 }
 
 // Topics 返回所有已注册的主题列表。
@@ -293,12 +368,12 @@ func (ee *EventEmitter) GetMessageHandleFunc(topic string) (MessageHandleFunc, e
 	ee.lock.RLock()
 	defer ee.lock.RUnlock()
 
-	metadata, ok := ee.registerFuncs[topic]
-	if !ok {
+	fnsList, ok := ee.registerFuncs[topic]
+	if !ok || len(fnsList) == 0 {
 		return nil, ErrTopicNotExists
 	}
 
-	return metadata.GetOrigMsgHandleFunc(), nil
+	return fnsList[0].GetOrigMsgHandleFunc(), nil
 }
 
 // DispatchEvent 根据事件的 Topic 路由到对应的已注册 wrapFunc 并执行，供 Pipeline 适配器调用。
@@ -309,19 +384,26 @@ func (ee *EventEmitter) DispatchEvent(event *Event) (any, error) {
 	}
 
 	ee.lock.RLock()
-	defer ee.lock.RUnlock()
-
 	if ee.stopped.Load() {
+		ee.lock.RUnlock()
 		return nil, ErrEmitterStopped
 	}
 
-	fns, ok := ee.registerFuncs[event.GetTopic()]
-	if !ok {
+	fnsList, ok := ee.registerFuncs[event.GetTopic()]
+	if !ok || len(fnsList) == 0 {
+		ee.lock.RUnlock()
 		return nil, ErrTopicNotExists
 	}
-	wrapFn := fns.GetWrapMsgHandleFunc()
+	fnsCopy := make([]*handleFuncs, len(fnsList))
+	copy(fnsCopy, fnsList)
+	ee.lock.RUnlock()
 
-	return wrapFn(event)
+	var result any
+	var err error
+	for _, fns := range fnsCopy {
+		result, err = fns.GetWrapMsgHandleFunc()(event)
+	}
+	return result, err
 }
 
 // RecycleEvent 将 *Event 归还对象池，供 Pipeline 适配器在回调完成后调用。

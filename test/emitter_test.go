@@ -892,3 +892,270 @@ func TestEventEmitter_RegisterAfterStop(t *testing.T) {
 	// Topic should not exist since register was rejected
 	assert.False(t, ee.HasTopic(testTopic))
 }
+
+func TestEventEmitter_Wait(t *testing.T) {
+	ee, _ := setupEmitterWithWorkers(t, nil, 4)
+
+	var count atomic.Int64
+	handlerFunc := func(msg any) (any, error) {
+		count.Add(1)
+		return msg, nil
+	}
+	ee.RegisterWithTopic(testTopic, handlerFunc)
+
+	var wg sync.WaitGroup
+	numGoroutines := 50
+	numEmitsPerGoroutine := 20
+
+	for range numGoroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range numEmitsPerGoroutine {
+				for {
+					err := ee.EmitWithTopic(testTopic, testMessage)
+					if err == nil {
+						break
+					}
+					if errors.Is(err, kt2.ErrSchedulerFull) {
+						time.Sleep(5 * time.Millisecond)
+						continue
+					}
+					t.Errorf("unexpected error: %v", err)
+					break
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	ee.Wait()
+
+	assert.Equal(t, int64(numGoroutines*numEmitsPerGoroutine), count.Load())
+
+	ee.Stop()
+}
+
+func TestEventEmitter_WaitAfterStop(t *testing.T) {
+	ee, _ := setupEmitter(t, nil)
+
+	var count atomic.Int64
+	handlerFunc := func(msg any) (any, error) {
+		count.Add(1)
+		return msg, nil
+	}
+	ee.RegisterWithTopic(testTopic, handlerFunc)
+
+	for range testMaxRounds {
+		err := ee.EmitWithTopic(testTopic, testMessage)
+		assert.NoError(t, err)
+	}
+
+	ee.Wait()
+	assert.Equal(t, int64(testMaxRounds), count.Load())
+
+	ee.Stop()
+
+	done := make(chan struct{})
+	go func() {
+		ee.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Wait() blocked after Stop()")
+	}
+}
+
+func TestEventEmitter_WaitConcurrentEmit(t *testing.T) {
+	ee, _ := setupEmitterWithWorkers(t, nil, 16)
+
+	var count atomic.Int64
+	handlerFunc := func(msg any) (any, error) {
+		count.Add(1)
+		return msg, nil
+	}
+	ee.RegisterWithTopic(testTopic, handlerFunc)
+
+	var wg sync.WaitGroup
+	numGoroutines := 100
+	numEmitsPerGoroutine := 10
+
+	for range numGoroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range numEmitsPerGoroutine {
+				for {
+					err := ee.EmitWithTopic(testTopic, testMessage)
+					if err == nil {
+						break
+					}
+					if errors.Is(err, kt2.ErrSchedulerFull) {
+						time.Sleep(5 * time.Millisecond)
+						continue
+					}
+					t.Errorf("unexpected error: %v", err)
+					break
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	ee.Wait()
+
+	assert.Equal(t, int64(numGoroutines*numEmitsPerGoroutine), count.Load())
+
+	ee.Stop()
+}
+
+func TestEventEmitter_AppendWithTopic(t *testing.T) {
+	ee, _ := setupEmitter(t, nil)
+	defer ee.Stop()
+
+	var count1, count2 atomic.Int64
+	ee.RegisterWithTopic(testTopic, func(msg any) (any, error) {
+		count1.Add(1)
+		return "h1", nil
+	})
+	ee.AppendWithTopic(testTopic, func(msg any) (any, error) {
+		count2.Add(1)
+		return "h2", nil
+	})
+
+	for range testMaxRounds {
+		err := ee.EmitWithTopic(testTopic, testMessage)
+		assert.NoError(t, err)
+	}
+
+	time.Sleep(time.Second)
+	assert.Equal(t, int64(testMaxRounds), count1.Load())
+	assert.Equal(t, int64(testMaxRounds), count2.Load())
+}
+
+func TestEventEmitter_Append(t *testing.T) {
+	ee, _ := setupEmitter(t, nil)
+	defer ee.Stop()
+
+	var count1, count2 atomic.Int64
+	ee.Register(func(msg any) (any, error) {
+		count1.Add(1)
+		return msg, nil
+	})
+	ee.Append(func(msg any) (any, error) {
+		count2.Add(1)
+		return msg, nil
+	})
+
+	for range testMaxRounds {
+		err := ee.Emit(testMessage)
+		assert.NoError(t, err)
+	}
+
+	time.Sleep(time.Second)
+	assert.Equal(t, int64(testMaxRounds), count1.Load())
+	assert.Equal(t, int64(testMaxRounds), count2.Load())
+}
+
+func TestEventEmitter_RegisterReplacesHandlers(t *testing.T) {
+	ee, _ := setupEmitter(t, nil)
+	defer ee.Stop()
+
+	var count1, count2 atomic.Int64
+	ee.RegisterWithTopic(testTopic, func(msg any) (any, error) {
+		count1.Add(1)
+		return msg, nil
+	})
+	ee.AppendWithTopic(testTopic, func(msg any) (any, error) {
+		count2.Add(1)
+		return msg, nil
+	})
+
+	var count3 atomic.Int64
+	ee.RegisterWithTopic(testTopic, func(msg any) (any, error) {
+		count3.Add(1)
+		return msg, nil
+	})
+
+	err := ee.EmitWithTopic(testTopic, testMessage)
+	assert.NoError(t, err)
+
+	time.Sleep(time.Second)
+	assert.Equal(t, int64(0), count1.Load())
+	assert.Equal(t, int64(0), count2.Load())
+	assert.Equal(t, int64(1), count3.Load())
+}
+
+func TestEventEmitter_AppendOnceWithTopic(t *testing.T) {
+	ee, _ := setupEmitter(t, nil)
+	defer ee.Stop()
+
+	var count1, count2 atomic.Int64
+	ee.RegisterWithTopic(testTopic, func(msg any) (any, error) {
+		count1.Add(1)
+		return msg, nil
+	})
+	ee.AppendOnceWithTopic(testTopic, func(msg any) (any, error) {
+		count2.Add(1)
+		return msg, nil
+	})
+
+	for range testMaxRounds {
+		err := ee.EmitWithTopic(testTopic, testMessage)
+		assert.NoError(t, err)
+	}
+
+	time.Sleep(time.Second)
+	assert.Equal(t, int64(testMaxRounds), count1.Load())
+	assert.Equal(t, int64(1), count2.Load())
+}
+
+func TestEventEmitter_FanoutConcurrentEmit(t *testing.T) {
+	ee, _ := setupEmitterWithWorkers(t, nil, 16)
+	defer ee.Stop()
+
+	var count1, count2 atomic.Int64
+	ee.RegisterWithTopic(testTopic, func(msg any) (any, error) {
+		count1.Add(1)
+		return msg, nil
+	})
+	ee.AppendWithTopic(testTopic, func(msg any) (any, error) {
+		count2.Add(1)
+		return msg, nil
+	})
+
+	var wg sync.WaitGroup
+	numGoroutines := 50
+	numEmitsPerGoroutine := 20
+
+	for range numGoroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range numEmitsPerGoroutine {
+				for {
+					err := ee.EmitWithTopic(testTopic, testMessage)
+					if err == nil {
+						break
+					}
+					if errors.Is(err, kt2.ErrSchedulerFull) {
+						time.Sleep(5 * time.Millisecond)
+						continue
+					}
+					t.Errorf("unexpected error: %v", err)
+					break
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	ee.Wait()
+
+	expected := int64(numGoroutines * numEmitsPerGoroutine)
+	assert.Equal(t, expected, count1.Load())
+	assert.Equal(t, expected, count2.Load())
+}
