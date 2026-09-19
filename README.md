@@ -14,8 +14,10 @@ A lightweight, topic-based event emitter library for Go, inspired by Node.js `ev
 **Key features:**
 
 - Topic-based pub/sub with default topic support
+- Fan-out: multiple handlers per topic via `Append` / `AppendOnce`
 - Once semantics (`RegisterOnce` / `ResetOnce`) for one-shot handlers
 - Delayed emission via `EmitAfter`
+- Graceful drain with `Wait()` / `EventDone()`
 - Pluggable async pipeline (karta v2 adapter included)
 - Thread-safe and object-pooled for high concurrency
 
@@ -75,6 +77,19 @@ func main() {
 [Order] order-4
 ```
 
+## Handler Registration Semantics
+
+`Register` and `RegisterOnce` **replace** all handlers on a topic. Use `Append` and `AppendOnce` to **add** handlers without removing existing ones.
+
+```go
+// Replace: topic "order" now has only handlerB
+ee.RegisterWithTopic("order", handlerA)
+ee.RegisterWithTopic("order", handlerB)
+
+// Append: topic "order" now has both handlerB and handlerC
+ee.AppendWithTopic("order", handlerC)
+```
+
 ## Once Semantics
 
 Register a handler that fires only once. Use `ResetOnce` to re-enable it.
@@ -90,6 +105,34 @@ _ = ee.EmitWithTopic("init", "second") // returns ErrTopicExecutedOnce
 _ = ee.ResetOnceWithTopic("init")
 _ = ee.EmitWithTopic("init", "third")  // executed again
 ```
+
+## Fan-out (Multi-handler per Topic)
+
+Multiple handlers on the same topic all fire when an event is emitted:
+
+```go
+ee.RegisterWithTopic("order", processPayment)
+ee.AppendWithTopic("order", sendNotification)
+ee.AppendWithTopic("order", updateInventory)
+
+// All three handlers execute for each emission
+_ = ee.EmitWithTopic("order", orderPayload)
+```
+
+## Graceful Drain
+
+Use `Wait()` to block until all in-flight events have been processed:
+
+```go
+for i := range 1000 {
+    _ = ee.EmitWithTopic("task", i)
+}
+
+ee.Wait()  // block until all 1000 events are handled
+ee.Stop()
+```
+
+`EventDone()` is called by the pipeline adapter after each event completes. Custom pipeline adapters must call `ee.EventDone()` to maintain correct drain semantics.
 
 ## Quick Start Shortcut
 
@@ -172,23 +215,29 @@ func main() {
 | Method                                                   | Description                                                                  |
 | -------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `NewEventEmitter(pl Pipeline) *EventEmitter`             | Create an emitter. Returns `nil` if `pl` is `nil`.                           |
-| `RegisterWithTopic(topic, fn)`                           | Register handler for a topic                                                 |
-| `Register(fn)`                                           | Register handler for the default topic                                       |
-| `UnregisterWithTopic(topic)`                             | Remove handler for a topic                                                   |
-| `Unregister()`                                           | Remove handler for the default topic                                         |
-| `RegisterOnceWithTopic(topic, fn)`                       | Register a one-shot handler                                                  |
-| `RegisterOnce(fn)`                                       | Register a one-shot handler on default topic                                 |
-| `ResetOnceWithTopic(topic) error`                        | Re-enable a one-shot handler                                                 |
-| `ResetOnce() error`                                      | Re-enable a one-shot handler on default topic                                |
+| `RegisterWithTopic(topic, fn)`                           | Replace all handlers for a topic with a single handler                      |
+| `Register(fn)`                                           | Replace all handlers for the default topic                                   |
+| `UnregisterWithTopic(topic)`                             | Remove all handlers for a topic                                              |
+| `Unregister()`                                           | Remove all handlers for the default topic                                    |
+| `AppendWithTopic(topic, fn)`                             | Add a handler to a topic without replacing existing ones                     |
+| `Append(fn)`                                             | Add a handler to the default topic                                           |
+| `RegisterOnceWithTopic(topic, fn)`                       | Replace all handlers with a one-shot handler                                 |
+| `RegisterOnce(fn)`                                       | Replace all handlers on default topic with a one-shot handler                |
+| `AppendOnceWithTopic(topic, fn)`                         | Add a one-shot handler to a topic                                            |
+| `AppendOnce(fn)`                                         | Add a one-shot handler to the default topic                                  |
+| `ResetOnceWithTopic(topic) error`                        | Re-enable all once handlers for a topic                                      |
+| `ResetOnce() error`                                      | Re-enable all once handlers on default topic                                 |
 | `EmitWithTopic(topic, msg) error`                        | Emit an event on a topic                                                     |
 | `Emit(msg) error`                                        | Emit an event on the default topic                                           |
 | `EmitAfterWithTopic(topic, msg, delay) error`            | Emit after a delay                                                           |
 | `EmitAfter(msg, delay) error`                            | Emit on default topic after a delay                                          |
 | `HasTopic(topic) bool`                                   | Check if a topic is registered                                               |
 | `Topics() []string`                                      | List all registered topics                                                   |
-| `GetMessageHandleFunc(topic) (MessageHandleFunc, error)` | Get the handler for a topic                                                  |
+| `GetMessageHandleFunc(topic) (MessageHandleFunc, error)` | Get the first handler for a topic                                            |
 | `DispatchEvent(event *Event) (any, error)`               | Route and execute by event topic; returns `ErrEmitterStopped` after `Stop()` |
 | `RecycleEvent(e *Event)`                                 | Return an `*Event` to the object pool (for pipeline adapter implementors)    |
+| `Wait()`                                                 | Block until all in-flight events are processed                               |
+| `EventDone()`                                            | Mark one in-flight event as done (for pipeline adapter implementors)         |
 | `Stop()`                                                 | Stop the emitter and its pipeline                                            |
 | `IsStopped() bool`                                       | Check if the emitter has been stopped                                        |
 
@@ -198,7 +247,7 @@ func main() {
 | ------------------- | ----------------------------------------------------------------------------- |
 | `Event`             | Event object carrying a topic and data payload                                |
 | `NewEvent() *Event` | Create a zero-valued `Event`                                                  |
-| `Pipeline`          | Async pipeline interface with `Submit`, `SubmitAfter`, `Stop`               |
+| `Pipeline`          | Async pipeline interface: `Submit(msg)`, `SubmitAfter(msg, delay)`, `Stop()` |
 | `MessageHandleFunc` | Handler type alias: `func(msg any) (any, error)`                              |
 | `DefaultTopicName`  | Constant `"default"`, the implicit topic for `Register`/`Emit` helpers        |
 
@@ -215,7 +264,7 @@ func main() {
 
 ## Thread Safety
 
-`EventEmitter` is safe for concurrent use. Handler registration uses `sync.RWMutex` and the stop flag uses `atomic.Bool`. Events are pooled via `sync.Pool` to minimize GC pressure under load.
+`EventEmitter` is safe for concurrent use. Handler registration uses `sync.RWMutex`, the stop flag uses `atomic.Bool`, and in-flight event tracking uses `sync.WaitGroup`. Events are pooled via `sync.Pool` to minimize GC pressure under load.
 
 **Concurrent backpressure:** When the underlying pipeline's scheduler buffer is full (e.g. `SimpleScheduler` with a fixed buffer size), `EmitWithTopic` and `Emit` may return an error (such as `karta.ErrSchedulerFull`). In high-throughput scenarios, callers should implement retry logic with a short backoff to handle transient buffer saturation gracefully.
 
@@ -226,7 +275,7 @@ See the [`./examples`](./examples) directory for runnable demos:
 - [`default`](./examples/default) — Multi-topic registration, delayed emission, query API
 - [`runonce`](./examples/runonce) — One-shot handlers with reset
 - [`callback`](./examples/callback) — Lifecycle hooks with `OnBefore` / `OnAfter`
-- [`concurrent`](./examples/concurrent) — High-concurrency stress test
+- [`concurrent`](./examples/concurrent) — High-concurrency stress test with `Wait()` drain
 - [`lazy`](./examples/lazy) — One-liner initialization shortcut
 
 ## License
